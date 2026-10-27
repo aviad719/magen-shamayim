@@ -155,8 +155,8 @@ function ai(s,dt){var hzAll=alive(s,'hz'),mobile=hzAll.filter(v=>!U[v.type].buil
    if(prey&&drones<rule.droneMax){var drone=makeUnit(s,'drone','hz',site.x+2,site.y-2,{site:site.key});drone.goal={x:prey.x,y:prey.y};drone.raid=1;emit(s,'רחפן נפץ שוגר מ'+site.n,'drone')}}
  }
  // Reinforcements: a base under attack calls mobile units from friendly villages and cities within reach.
- s.aiHelpT=(s.aiHelpT||0)+dt;if(s.aiHelpT>8){s.aiHelpT=0;var ilGround=alive(s,'il').filter(u=>U[u.type].move!=='air');
-  for(var z of s.sites){if(z.owner!=='hz'||!get(s,z.building))continue;var r=S[z.t].radius+6;if(!ilGround.some(u=>dist(u,z)<r))continue;
+ s.aiHelpT=(s.aiHelpT||0)+dt;if(s.aiHelpT>8&&s.time>dif.grace*.5){s.aiHelpT=0;var ilGround=alive(s,'il').filter(u=>U[u.type].move!=='air');
+  for(var z of s.sites){if(z.owner!=='hz'||!get(s,z.building))continue;var r=S[z.t].radius+4.5;if(!ilGround.some(u=>dist(u,z)<r))continue;
    var helpers=hzAll.filter(u=>!U[u.type].building&&u.type!=='drone'&&!u.raid&&u.site&&u.site!==z.key&&dist(u,z)<26&&(s.sites.find(q=>q.key===u.site)||{}).t!=='outpost').sort((a,b)=>dist(a,z)-dist(b,z)).slice(0,dif.help||2);
    if(helpers.length){helpers.forEach(u=>{u.goal={x:z.x+(rand(s)-.5)*3,y:z.y+(rand(s)-.5)*3};u.raid=1});emit(s,'חיזבאללה מתגבר את '+z.n,'reinforce')}}}
  if(s.time>dif.grace)s.aiAttackT+=dt;if(s.aiAttackT>dif.counter){s.aiAttackT=0;

@@ -3,20 +3,40 @@
 var D=root.LF.data,S=root.LF.sim,M=D.MAP;
 function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y:111,z:19,min:9,max:46,w:844,h:390,dpr:1,right:148},tile=document.createElement('canvas');
  tile.width=M.cols*24;tile.height=M.rows*24;var fog=document.createElement('canvas');fog.width=M.cols;fog.height=M.rows;var fogImg=fog.getContext('2d').createImageData(M.cols,M.rows);for(var fi=0;fi<fogImg.data.length;fi+=4){fogImg.data[fi]=5;fogImg.data[fi+1]=14;fogImg.data[fi+2]=21}var g=tile.getContext('2d');
- var colors={sea:'#112738',beach:'#7b8b79',open:'#536956',forest:'#294e3f',village:'#817862',city:'#766f61',road:'#867e65',river:'#307b89',bridge:'#a9a18a',hills:'#596a54',syria:'#3a4446'};
- var noise=(x,y)=>{var n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)};
- for(var y=0;y<M.rows;y++)for(var x=0;x<M.cols;x++){
-  var t=S.terrain[y][x],px=x*24,py=y*24,r=noise(x,y),c=colors[t]||'#445542';g.fillStyle=c;g.fillRect(px,py,25,25);
-  if(t==='forest'){g.fillStyle=r>.3?'#1b3f34':'#3b6147';for(var j=0;j<3;j++){var ox=noise(x+j,y)*23,oy=noise(y+j,x)*23;g.beginPath();g.arc(px+ox,py+oy,4+r*3,0,7);g.fill()}}
-  else if(t==='open'||t==='hills'){g.fillStyle=r>.5?'rgba(255,225,150,.075)':'rgba(0,20,5,.10)';g.fillRect(px+r*11,py+r*15,5+r*8,2+r*6)}
-  else if(t==='city'||t==='village'){g.fillStyle=r>.4?'#a69b81':'#4c5148';for(var k=0;k<3;k++)g.fillRect(px+2+noise(x+k,y)*14,py+2+noise(y+k,x)*14,4+r*3,4+r*3)}
-  else if(t==='sea'){g.strokeStyle='rgba(120,197,206,.075)';g.beginPath();g.moveTo(px+2,py+9);g.lineTo(px+15,py+9);g.stroke()}
- }
- function line(c,arr,col,w,dash){g.save();g.strokeStyle=col;g.lineWidth=w;g.lineJoin='round';g.lineCap='round';if(dash)g.setLineDash(dash);g.beginPath();arr.forEach((p,i)=>{var a=D.toTile(p[1],p[0]);if(i)g.lineTo(a.x*24,a.y*24);else g.moveTo(a.x*24,a.y*24)});g.stroke();g.restore()}
- line(g,D.COAST,'rgba(141,208,203,.7)',2);line(g,D.LITANI,'rgba(67,201,222,.75)',3);
- for(var r of D.ROADS)line(g,r,'rgba(190,185,143,.30)',2);
- line(g,D.BORDER,'rgba(73,185,236,.8)',2,[7,7]);
- for(var bridge of D.BRIDGES){var p=D.toTile(bridge[1],bridge[0]);g.fillStyle='#d6bc80';g.fillRect(p.x*24-5,p.y*24-3,10,6)}
+ // ---- Map painter: smooth, organic shapes over the same tile grid the simulation uses ----
+ var noise=(x,y)=>{var n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)},TS=24;
+ function path(arr){g.beginPath();arr.forEach((p,i)=>{var a=D.toTile(p[1],p[0]);if(i)g.lineTo(a.x*TS,a.y*TS);else g.moveTo(a.x*TS,a.y*TS)})}
+ function line(c,arr,col,w,dash){g.save();g.strokeStyle=col;g.lineWidth=w;g.lineJoin='round';g.lineCap='round';if(dash)g.setLineDash(dash);path(arr);g.stroke();g.restore()}
+ // land base with gentle light/dark patches
+ g.fillStyle='#55694f';g.fillRect(0,0,tile.width,tile.height);
+ for(var y=0;y<M.rows;y++)for(var x=0;x<M.cols;x++){var t=S.terrain[y][x],r=noise(x,y),px=x*TS,py=y*TS;
+  if(t==='hills'){g.fillStyle='rgba(150,130,90,'+(.05+r*.07)+')';g.beginPath();g.arc(px+noise(y,x*2)*24,py+r*24,10+r*14,0,7);g.fill();if(r>.6){g.strokeStyle='rgba(60,50,30,.12)';g.lineWidth=1.5;g.beginPath();g.arc(px+12,py+16,9+r*5,3.5,5.9);g.stroke()}}
+  else if(t==='open'||t==='road'||t==='beach'){g.fillStyle=r>.5?'rgba(220,210,140,.04)':'rgba(10,40,10,.05)';g.beginPath();g.arc(px+r*24,py+noise(y,x)*24,4+noise(x*5,y*3)*14,0,7);g.fill()}}
+ // fields near villages: soft striped patches
+ for(var y=0;y<M.rows;y+=2)for(var x=0;x<M.cols;x+=2){var t=S.terrain[y][x],r=noise(x*3,y*7);if((t==='open')&&r>.82){g.save();g.translate(x*TS+12,y*TS+12);g.rotate(r*3);g.fillStyle=r>.9?'rgba(196,180,110,.22)':'rgba(120,150,80,.25)';g.fillRect(-14,-10,28,20);g.restore()}}
+ // forests: overlapping canopy blobs, shadow first
+ for(var pass=0;pass<2;pass++)for(var y=0;y<M.rows;y++)for(var x=0;x<M.cols;x++){if(S.terrain[y][x]!=='forest')continue;for(var j=0;j<4;j++){var ox=noise(x+j*.37,y)*TS,oy=noise(y+j*.71,x)*TS,rr=7+noise(x*j+1,y)*7;
+   g.fillStyle=pass?(noise(x,y+j)>.5?'#2c5a3e':'#24503a'):'rgba(10,25,15,.35)';g.beginPath();g.arc(x*TS+ox+(pass?0:3),y*TS+oy+(pass?0:3),rr,0,7);g.fill();
+   if(pass&&j===0){g.fillStyle='rgba(120,180,110,.18)';g.beginPath();g.arc(x*TS+ox-2,y*TS+oy-2,rr*.5,0,7);g.fill()}}}
+ // built-up areas: clusters of roofs
+ function town(cx,cy,R,count,seed){for(var k=0;k<count;k++){var a=noise(seed+k,k*1.7)*6.283,d=Math.sqrt(noise(k*2.3,seed))*R,x=cx+Math.cos(a)*d,y=cy+Math.sin(a)*d,w=5+noise(k,seed*3)*8,h=5+noise(seed*5,k)*7;
+   g.save();g.translate(x,y);g.rotate(noise(k*7,seed)*.6-.3);g.fillStyle='rgba(0,0,0,.28)';g.fillRect(-w/2+2,-h/2+2,w,h);g.fillStyle=noise(k,k+seed)>.55?'#c9b99a':noise(k*3,seed)>.5?'#a9876b':'#d8d0c0';g.fillRect(-w/2,-h/2,w,h);g.restore()}}
+ for(var site of D.SITES){var c=D.toTile(site.lon,site.lat),R=(site.t==='main'?4.1:site.t==='city'?3.1:site.t==='village'?1.9:0)*TS;if(!R)continue;
+  g.fillStyle='rgba(150,140,115,.35)';g.beginPath();g.arc(c.x*TS,c.y*TS,R*1.05,0,7);g.fill();town(c.x*TS,c.y*TS,R,site.t==='main'?260:site.t==='city'?130:40,site.lat*100)}
+ for(var it of D.IL_TOWNS){var c=D.toTile(it[2],it[1]);g.fillStyle='rgba(150,150,140,.3)';g.beginPath();g.arc(c.x*TS,c.y*TS,1.7*TS,0,7);g.fill();town(c.x*TS,c.y*TS,1.6*TS,45,it[1]*100)}
+ // roads, river, bridges
+ for(var rd of D.ROADS){line(g,rd,'rgba(40,35,25,.45)',5);line(g,rd,'#b9ae88',2.6)}
+ line(g,D.LITANI,'#1d5f6e',8);line(g,D.LITANI,'#3aa7bd',5);
+ for(var bridge of D.BRIDGES){var p=D.toTile(bridge[1],bridge[0]);g.save();g.translate(p.x*TS,p.y*TS);g.fillStyle='#3a3226';g.fillRect(-9,-6,18,12);g.fillStyle='#d9c48e';g.fillRect(-8,-4.5,16,9);g.restore()}
+ // sea: one smooth polygon from the real coastline, then surf and beach
+ var cst=D.COAST.map(p=>D.toTile(p[1],p[0]));g.beginPath();cst.forEach((a,i)=>i?g.lineTo(a.x*TS,a.y*TS):g.moveTo(a.x*TS,a.y*TS));g.lineTo(-10,cst[cst.length-1].y*TS);g.lineTo(-10,cst[0].y*TS);g.closePath();
+ var sg=g.createLinearGradient(0,0,tile.width*.4,0);sg.addColorStop(0,'#0b2233');sg.addColorStop(1,'#16465a');g.fillStyle=sg;g.fill();
+ line(g,D.COAST,'rgba(214,201,150,.85)',9);line(g,D.COAST,'rgba(160,225,225,.55)',2.5);
+ for(var k=1;k<4;k++){g.save();g.translate(-k*10,0);line(g,D.COAST,'rgba(140,210,220,'+(.10/k)+')',2);g.restore()}
+ // Syria (out of bounds) and the blue line
+ var sy=D.SYRIA.map(p=>D.toTile(p[1],p[0]));g.beginPath();sy.forEach((a,i)=>i?g.lineTo(a.x*TS,a.y*TS):g.moveTo(a.x*TS,a.y*TS));g.lineTo(tile.width+10,sy[sy.length-1].y*TS);g.lineTo(tile.width+10,sy[0].y*TS);g.closePath();g.fillStyle='rgba(30,36,40,.55)';g.fill();
+ line(g,D.SYRIA,'rgba(200,90,80,.7)',2.5,[8,6]);
+ line(g,D.BORDER,'rgba(73,185,236,.9)',2.5,[9,7]);
  function resize(){view.dpr=Math.min(2,devicePixelRatio||1);view.w=innerWidth;view.h=innerHeight;canvas.width=Math.floor(view.w*view.dpr);canvas.height=Math.floor(view.h*view.dpr);canvas.style.width=view.w+'px';canvas.style.height=view.h+'px';ctx.setTransform(view.dpr,0,0,view.dpr,0,0)}
  function screen(x,y){return{x:(x-view.x)*view.z+(view.w-view.right)/2,y:(y-view.y)*view.z+view.h/2}}
  function world(x,y){return{x:(x-(view.w-view.right)/2)/view.z+view.x,y:(y-view.h/2)/view.z+view.y}}
@@ -35,17 +55,28 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     if(hidden&&site.owner!=='il')continue;
     var color=site.owner==='il'?'#61dcbe':site.t==='outpost'?'#d98c55':site.t==='village'?'#e3bc71':'#e75f57';
     var radius=site.t==='main'?13:site.t==='city'?10:site.t==='village'?7:5;
-    ctx.fillStyle='rgba(7,18,22,.85)';ctx.beginPath();ctx.arc(p.x,p.y,radius+4,0,7);ctx.fill();
-    ctx.fillStyle=color;ctx.strokeStyle='#dfd4b0';ctx.lineWidth=1.3;ctx.beginPath();
-    if(site.t==='outpost')ctx.rect(p.x-radius*.7,p.y-radius*.7,radius*1.4,radius*1.4);
-    else if(site.t==='main'){for(var q=0;q<6;q++){var ang=q*Math.PI/3-.5;q?ctx.lineTo(p.x+Math.cos(ang)*radius,p.y+Math.sin(ang)*radius):ctx.moveTo(p.x+Math.cos(ang)*radius,p.y+Math.sin(ang)*radius)}ctx.closePath()}
-    else ctx.arc(p.x,p.y,radius,0,7);ctx.fill();ctx.stroke();
-    var bu=site.owner==='hz'&&S.get(s,site.building);if(bu&&bu.hp<bu.maxHp){var bw=radius*2.6;ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(p.x-bw/2,p.y+radius+5,bw,4);ctx.fillStyle=bu.hp/bu.maxHp>.4?'#ffb35c':'#ff5a4a';ctx.fillRect(p.x-bw/2,p.y+radius+5,bw*bu.hp/bu.maxHp,4)}
-    if(site.owner==='hz'&&!bu){ctx.strokeStyle='#ffe48a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x-radius*.6,p.y-radius*.6);ctx.lineTo(p.x+radius*.6,p.y+radius*.6);ctx.moveTo(p.x+radius*.6,p.y-radius*.6);ctx.lineTo(p.x-radius*.6,p.y+radius*.6);ctx.stroke()}
+    var bAlive=site.owner==='hz'&&S.get(s,site.building),k=Math.max(.55,Math.min(1.6,z/22));ctx.save();ctx.translate(p.x,p.y);ctx.scale(k,k);
+    if(site.t==='outpost'){ // sandbag bunker with firing slits, dug into the trees
+      ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(2,2,12,0,7);ctx.fill();ctx.fillStyle=bAlive||site.owner==='il'?'#7a6a48':'#4a4234';ctx.beginPath();for(var q=0;q<8;q++){var ang=q*Math.PI/4+.39;ctx.lineTo(Math.cos(ang)*12,Math.sin(ang)*12)}ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#cbb98a';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#3a3125';ctx.beginPath();ctx.arc(0,0,6,0,7);ctx.fill();ctx.fillStyle='#14100b';for(var q=0;q<4;q++){ctx.save();ctx.rotate(q*Math.PI/2);ctx.fillRect(8,-1.2,4,2.4);ctx.restore()}}
+    else { // compound: walls + buildings; bigger for cities and the main base
+      var Wd=site.t==='main'?44:site.t==='city'?34:22;ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(-Wd/2+3,-Wd/2+3,Wd,Wd*.8);ctx.fillStyle=bAlive||site.owner==='il'?'#b7a27a':'#5b5244';ctx.fillRect(-Wd/2,-Wd/2,Wd,Wd*.8);
+      ctx.strokeStyle=site.owner==='il'?'#9ff3dc':'#f0c477';ctx.lineWidth=2;ctx.strokeRect(-Wd/2,-Wd/2,Wd,Wd*.8);ctx.fillStyle=bAlive||site.owner==='il'?'#e6dccb':'#3c362e';
+      var nb=site.t==='main'?6:site.t==='city'?4:2;for(var q=0;q<nb;q++){var bx=-Wd/2+4+(q%3)*(Wd-8)/3,by=-Wd/2+4+Math.floor(q/3)*(Wd*.8-8)/2;ctx.fillRect(bx,by,(Wd-8)/3-3,(Wd*.8-8)/(nb>3?2:1)-3)}}
+    // flag: yellow for Hezbollah, blue-white once captured
+    if(site.owner==='il'){ctx.fillStyle='#fff';ctx.fillRect(1,-30,13,9);ctx.fillStyle='#2f6fd6';ctx.fillRect(1,-29,13,1.5);ctx.fillRect(1,-24,13,1.5)}else if(bAlive){ctx.fillStyle='#f3d21a';ctx.fillRect(1,-30,13,9);ctx.fillStyle='#2f8f3a';ctx.fillRect(5,-27,5,3)}
+    if(site.owner==='il'||bAlive){ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(1,-30);ctx.lineTo(1,-12);ctx.stroke()}
+    ctx.restore();radius=(site.t==='outpost'?12:site.t==='main'?22:site.t==='city'?17:11)*k;
+    var bu=site.owner==='hz'&&S.get(s,site.building);if(bu&&bu.hp<bu.maxHp){var bw=radius*2.6;ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(p.x-bw/2,p.y-radius-6,bw,4);ctx.fillStyle=bu.hp/bu.maxHp>.4?'#ffb35c':'#ff5a4a';ctx.fillRect(p.x-bw/2,p.y-radius-6,bw*bu.hp/bu.maxHp,4)}
+    if(false){ctx.strokeStyle='#ffe48a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x-radius*.6,p.y-radius*.6);ctx.lineTo(p.x+radius*.6,p.y+radius*.6);ctx.moveTo(p.x+radius*.6,p.y-radius*.6);ctx.lineTo(p.x-radius*.6,p.y+radius*.6);ctx.stroke()}
     if(site.capture>0&&site.owner==='hz'){ctx.strokeStyle='#52ddc7';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,radius+6,-Math.PI/2,-Math.PI/2+(site.capture/ru.capture)*Math.PI*2);ctx.stroke()}
-    if(z>=15||site.t==='main'||site.t==='city')label(site.x,site.y-(radius+10)/z,site.n,site.owner==='il'?'#aef7e2':'#ffdcc3',site.t==='main'?13:11,'rgba(8,20,25,.62)');
+    if(z>=15||site.t==='main'||site.t==='city')label(site.x,site.y+(radius+9)/z,site.n,site.owner==='il'?'#aef7e2':'#ffdcc3',site.t==='main'?13:11,'rgba(8,20,25,.62)');
   }
-  var hq=S.get(s,s.hq);if(hq){var p=screen(hq.x,hq.y);ctx.fillStyle='#21b9d4';ctx.strokeStyle='#dcf7ef';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y-14);ctx.lineTo(p.x+14,p.y+10);ctx.lineTo(p.x-14,p.y+10);ctx.closePath();ctx.fill();ctx.stroke();label(hq.x,hq.y+1.7,'בסיס פיקוד צפון','#b6f2ff',11,'rgba(8,20,25,.8)')}
+  var hq=S.get(s,s.hq);if(hq){var p=screen(hq.x,hq.y),k=Math.max(.6,z/22);ctx.save();ctx.translate(p.x,p.y);ctx.scale(k,k);
+   ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(-25,-19,54,42);ctx.fillStyle='#8b8a6c';ctx.fillRect(-28,-22,54,42);ctx.strokeStyle='#d8e9d2';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.strokeRect(-28,-22,54,42);ctx.setLineDash([]);
+   ctx.fillStyle='#5d6a4c';ctx.fillRect(-22,-16,18,12);ctx.fillRect(-22,0,18,12);ctx.fillStyle='#c9c4a6';ctx.fillRect(2,-16,18,10);ctx.fillStyle='#3d4a36';ctx.beginPath();ctx.arc(11,8,8,0,7);ctx.fill();ctx.strokeStyle='#e8e2b8';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(7,4);ctx.lineTo(7,12);ctx.moveTo(15,4);ctx.lineTo(15,12);ctx.moveTo(7,8);ctx.lineTo(15,8);ctx.stroke();
+   ctx.fillStyle='#fff';ctx.fillRect(-1,-38,12,8);ctx.fillStyle='#2f6fd6';ctx.fillRect(-1,-37,12,1.4);ctx.fillRect(-1,-32.4,12,1.4);ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-1,-38);ctx.lineTo(-1,-22);ctx.stroke();
+   if(hq.hp<hq.maxHp){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(-28,24,54,4);ctx.fillStyle=hq.hp/hq.maxHp>.4?'#4ee4b5':'#ff6b5a';ctx.fillRect(-28,24,54*hq.hp/hq.maxHp,4)}ctx.restore();label(hq.x,hq.y+(32*Math.max(.6,z/22))/z,'בסיס פיקוד צפון','#b6f2ff',11,'rgba(8,20,25,.8)')}
   for(var u of s.units){if(u.hp<=0||u.carriedBy||(!u.built&&u.type!=='post'))continue;if(u.side==='hz'&&showFog&&S.inFog(s,u.x,u.y))continue;var p=screen(u.x,u.y),sp=D.UNITS[u.type];if(p.x<-20||p.x>w+20||p.y<-20||p.y>h+20)continue;
     var own=u.side==='il',sz=Math.max(4,Math.min(16,(sp.size||.48)*z*.75));
     if(sp.building&&u.type!=='post')continue;

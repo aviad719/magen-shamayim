@@ -7,7 +7,7 @@ function toast(text){$('toast').textContent=text;$('toast').classList.add('show'
 function save(){if(!s||s.lost)return;storage.set(KEY,Sim.save(s))}
 function sharedBudget(){return typeof SHARED==='undefined'?0:SHARED.budget()}
 function takeWarBudget(){if(typeof SHARED==='undefined')return;var n=SHARED.takeBudget();if(n){Sim.grant(s,n);toast('₪'+n+' מגלי מגן שמיים עברו לתקציב החזית')}}
-function updateIntro(){var saved=Sim.restore(storage.get(KEY));$('continueGame').classList.toggle('hidden',!saved||saved.lost);$('sharedLine').textContent='תקציב מלחמה ממגן שמיים: ₪'+sharedBudget().toLocaleString('he-IL')+' · משחק גם ללא מימון חיצוני';document.querySelectorAll('.diff button').forEach(b=>b.classList.toggle('active',b.dataset.diff===diff))}
+function updateIntro(){var saved=Sim.restore(storage.get(KEY));$('continueGame').classList.toggle('hidden',!saved||saved.lost||saved.won);$('sharedLine').textContent='תקציב מלחמה ממגן שמיים: ₪'+sharedBudget().toLocaleString('he-IL')+' · משחק גם ללא מימון חיצוני';document.querySelectorAll('.diff button').forEach(b=>b.classList.toggle('active',b.dataset.diff===diff))}
 function begin(continueIt){if(continueIt){s=Sim.restore(storage.get(KEY));if(!s)return;toast('המשחק נשמר — ממשיכים מהנקודה שבה עצרתם')}else{s=Sim.make((Date.now()&0xffffffff)>>>0,diff);storage.set(KEY,Sim.save(s))}
  s.paused=false;selected.clear();modal=false;$('intro').classList.add('hidden');$('end').classList.add('hidden');ren.camera(s.units.find(u=>u.id===s.hq).x+1,s.units.find(u=>u.id===s.hq).y-3,22);
  takeWarBudget();save();updateUI()}
