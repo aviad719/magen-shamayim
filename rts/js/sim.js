@@ -28,13 +28,13 @@ function makeUnit(s,type,side,x,y,opts){var spec=U[type];if(!spec)throw Error('u
  var a={id:++s.nextId,type,side,x,y,hp:spec.hp||n*spec.hpPer,maxHp:spec.hp||n*spec.hpPer,soldiers:n,group:0,cargo:[],carriedBy:0,
   goal:null,path:null,target:0,hold:0,cool:0,weaponCd:[],facing:0,site:opts.site||'',built:opts.built!==false,buildT:0,
   trophy:spec.trophy?spec.trophy.charges:0,trophyCd:0,loiter:spec.loiter||0,ammo:spec.ammo===undefined?null:spec.ammo,flight:'',flash:0};
- if(side==='hz'&&s.diff&&DIFF[s.diff].hp){a.hp*=DIFF[s.diff].hp;a.maxHp=a.hp}
+ if(side==='hz'&&s.diff&&DIFF[s.diff].hp){var zz=opts.site&&s.sites.find(q=>q.key===opts.site),deep=zz?zz.depth||0:0;a.hp*=DIFF[s.diff].hp*(1+deep*(spec.building?.5:.35));a.maxHp=a.hp}
  if(opts.hp!==undefined)a.hp=opts.hp;s.units.push(a);return a;}
 function make(seed,diff){diff=DIFF[diff]?diff:'normal';var s={version:1,seed:seed===undefined?20261027:seed,diff,time:0,nextId:0,nextGroup:0,money:DIFF[diff].money,units:[],sites:[],hq:0,
   queue:{inf:[],veh:[],air:[]},events:[],messages:[],incomeT:0,aiT:0,aiAttackT:0,won:false,lost:false,paused:false,speed:1,kills:0,captures:0,stats:{trophy:0},fog:1};
  var h=D.toTile(D.HOME.lon,D.HOME.lat);s.hq=makeUnit(s,'hq','il',h.x,h.y).id;
  [['golani',-4,-2],['nahal',-1.5,-2.8],['givati',1.5,-2.8],['engineer',-4.5,1],['merkava',4,-1.5],['namer',4.5,1.2],['uav_recon',0,-4]].forEach(v=>makeUnit(s,v[0],'il',h.x+v[1],h.y+v[2]));
- for(var site of D.SITES){var p=D.toTile(site.lon,site.lat),rule=S[site.t];var z={key:site.key,n:site.n,t:site.t,x:p.x,y:p.y,owner:'hz',capture:0,prod:rule.prod*(.7+rand(s)*.5),droneT:rule.drones*(.8+rand(s)*.5),income:rule.income,building:0};
+ for(var site of D.SITES){var p=D.toTile(site.lon,site.lat),rule=S[site.t];var z={key:site.key,n:site.n,t:site.t,x:p.x,y:p.y,depth:clamp((108-p.y)/95,0,1),owner:'hz',capture:0,prod:rule.prod*(.7+rand(s)*.5),droneT:rule.drones*(.8+rand(s)*.5),income:rule.income,building:0};
  s.sites.push(z);z.building=makeUnit(s,rule.bld,'hz',z.x,z.y,{site:z.key}).id;
  // Sparse starting garrisons; outpost anti-air and ATGM are real tactical threats.
  var start=rule.start.filter((_,i)=>rand(s)<(i<2?1:DIFF[diff].startMul));
@@ -42,7 +42,7 @@ function make(seed,diff){diff=DIFF[diff]?diff:'normal';var s={version:1,seed:see
  }s.messages=['ברוכים הבאים לחזית לבנון — כיבוש ביירות מנצח'];return s;}
 function get(s,id){return s.units.find(u=>u.id===id&&u.hp>0)}
 function alive(s,side){return s.units.filter(u=>u.hp>0&&!u.carriedBy&&(!side||u.side===side))}
-function emit(s,text,kind){s.messages.unshift(text);s.messages=s.messages.slice(0,6);s.events.push({kind:kind||'message',text,time:s.time})}
+function emit(s,text,kind){if(s.messages[0]!==text)s.messages.unshift(text);s.messages=s.messages.slice(0,6);s.events.push({kind:kind||'message',text,time:s.time})}
 function grant(s,n){s.money+=n;emit(s,'+'+n+' ₪ לתקציב המלחמה','money')}
 function queue(s,type){var sp=U[type];if(!sp||sp.side!=='il'||!sp.q||s.won||s.lost||s.money<sp.cost||s.queue[sp.q].length>=D.QUEUE_MAX[sp.q])return false;
  s.money-=sp.cost;s.queue[sp.q].push({type,remaining:sp.time});emit(s,sp.n+' בייצור','queue');return true}
@@ -83,12 +83,13 @@ function inflict(s,target,damage,fx,randVal){if(target.hp<=0)return {damage:0,in
  if(target.side==='hz'&&target.site&&!target.raid&&!sp.building&&target.hold>1)damage*=D.BONUS.dug.def; // dug in at their base
  target.hp=Math.max(0,target.hp-damage);target.flash=.22;
  s.events.push({kind:'hit',x:target.x,y:target.y,fx,time:s.time});if(target.hp<=0){s.events.push({kind:'explosion',x:target.x,y:target.y,time:s.time});if(target.cargo&&target.cargo.length){for(var id of target.cargo){var child=get(s,id);if(child){child.carriedBy=0;child.x=target.x+1;child.y=target.y+1;child.hp=Math.max(1,child.hp*.45)}}target.cargo=[]}
+ if(target.side==='il'){s.stats.lost=s.stats.lost||{};var lk=(target.lastHit||'?');s.stats.lost[lk]=(s.stats.lost[lk]||0)+1}
  if(target.side==='hz'){s.kills++;s.money+=Math.min(75,Math.round((sp.hp||sp.soldiers*sp.hpPer)*.05))}}
  return {damage,intercepted:false}}
 function attack(s,attacker,target,weapon){var a=U[attacker.type],t=U[target.type],factor=weapon.vs[t.armor]||0;if(!factor)return false;
  var n=a.soldiers?attacker.soldiers:1,terrainType=ground(attacker.x,attacker.y),power=bonus(attacker,terrainType,false).atk;
  var dmg=weapon.dmg*factor*power*(weapon.perSquad?1:n)*((attacker.side==='hz')?DIFF[s.diff].dmg:1);
- var result=inflict(s,target,dmg,weapon.fx);s.events.push({kind:'shot',x:attacker.x,y:attacker.y,tx:target.x,ty:target.y,fx:weapon.fx,side:attacker.side,time:s.time});
+ target.lastHit=attacker.type;var result=inflict(s,target,dmg,weapon.fx);s.events.push({kind:'shot',x:attacker.x,y:attacker.y,tx:target.x,ty:target.y,fx:weapon.fx,side:attacker.side,time:s.time});
  if(attacker.ammo!==null&&weapon.fx!=='bullet')attacker.ammo=Math.max(0,attacker.ammo-1);return result}
 function canHit(u,t,weapon){return !!(weapon.vs[U[t.type].armor]&&dist(u,t)<=weapon.range)}
 // Movement: a Dijkstra flow field per (goal cell, movement class), cached, so units route around the sea,
@@ -134,23 +135,30 @@ function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=M
   if(threat&&dist(u,threat)>(((sp.weapons||[])[0]||{}).range||3)&&(u.raid||!home||dist(threat,home)<leash+(home.t==='outpost'?0:4)))u.goal={x:threat.x,y:threat.y};
   else if(!threat){if(u.raid)u.raid=0;if(home&&home.owner==='hz'&&dist(u,home)>leash)u.goal={x:home.x+(rand(s)-.5)*4,y:home.y+(rand(s)-.5)*4}}}
  if(u.side==='il'&&u.target){var focus=get(s,u.target);if(focus&&dist(u,focus)>(sp.weapons[0]||{range:0}).range)u.goal={x:focus.x,y:focus.y};else if(!focus)u.target=0}
- if(sp.kamikaze){var victim=nearest(s,u,(sp.vision||6)*2);if(victim&&dist(u,victim)<1.3){inflict(s,victim,sp.kamikaze.dmg*(sp.kamikaze.vs[U[victim.type].armor]||0), 'blast');u.hp=0;s.events.push({kind:'explosion',x:u.x,y:u.y,time:s.time})}return}
+ if(sp.kamikaze){var victim=nearest(s,u,(sp.vision||6)*2);if(victim&&dist(u,victim)<1.3){victim.lastHit='drone';inflict(s,victim,sp.kamikaze.dmg*(sp.kamikaze.vs[U[victim.type].armor]||0), 'blast');u.hp=0;s.events.push({kind:'explosion',x:u.x,y:u.y,time:s.time})}return}
  for(var wi=0;wi<sp.weapons.length;wi++){var weapon=sp.weapons[wi];u.weaponCd[wi]=Math.max(0,(u.weaponCd[wi]||0)-dt);if(u.weaponCd[wi]>0||u.ammo===0)continue;
   var target=u.target?get(s,u.target):null;if(!target||target.side===u.side||!canHit(u,target,weapon))target=nearest(s,u,weapon.range,v=>canHit(u,v,weapon));
   if(target){attack(s,u,target,weapon);u.weaponCd[wi]=weapon.cd;if((sp.jet||sp.ammo)&&u.ammo===0){var home=get(s,s.hq);if(home){u.goal={x:home.x,y:home.y};u.flight='return'}break}}}
 }
-function production(s,dt){var h=get(s,s.hq);if(!h)return;for(var q of ['inf','veh','air']){var list=s.queue[q];if(!list.length)continue;list[0].remaining-=dt;
+// Captured cities become forward bases: new units roll out of the northernmost one.
+function forwardBase(s){var h=get(s,s.hq);if(!h)return null;var f=s.sites.filter(z=>z.owner==='il'&&(z.t==='city'||z.t==='main')).sort((a,b)=>a.y-b.y)[0];return f?{x:f.x,y:f.y+2,name:f.n}:{x:h.x,y:h.y,name:'בסיס פיקוד צפון'}}
+function production(s,dt){var h0=get(s,s.hq);if(!h0)return;var h=forwardBase(s);for(var q of ['inf','veh','air']){var list=s.queue[q];if(!list.length)continue;list[0].remaining-=dt;
  if(list[0].remaining<=0){var type=list.shift().type,sp=U[type],offset=s.nextId%6;
   var p={x:h.x+(q==='air'?1:q==='veh'?4:-4)+(offset%3)*.9,y:h.y-2.5-(offset/3|0)*1.1};var u=makeUnit(s,type,'il',p.x,p.y);emit(s,sp.n+' מוכנים לפקודה','unit');s.events.push({kind:'built',id:u.id,type,time:s.time})}}}
 function ai(s,dt){var hzAll=alive(s,'hz'),mobile=hzAll.filter(v=>!U[v.type].building&&v.type!=='drone').length,dif=DIFF[s.diff];
  for(var site of s.sites){if(site.owner!=='hz')continue;var rule=S[site.t],building=get(s,site.building);if(!building){site.prod=999;site.droneT=999;continue}
   site.prod-=dt;site.droneT-=dt;
   var mine=hzAll.filter(v=>v.site===site.key&&!U[v.type].building),troops=mine.filter(v=>v.type!=='drone'),drones=mine.length-troops.length;
-  if(site.prod<=0){site.prod=rule.prod*dif.prod*(.75+rand(s)*.5);if(troops.length<rule.cap&&mobile<dif.cap){var list=rule.make,type=list[Math.floor(rand(s)*list.length)],a=makeUnit(s,type,'hz',site.x+(rand(s)-.5)*5,site.y+(rand(s)-.5)*5,{site:site.key});a.hold=1;mobile++;
+  if(site.prod<=0){site.prod=rule.prod*dif.prod*(.75+rand(s)*.5);if(troops.length<rule.cap+Math.round((site.depth||0)*3)&&mobile<dif.cap){var list=rule.make,type=list[Math.floor(rand(s)*list.length)],a=makeUnit(s,type,'hz',site.x+(rand(s)-.5)*5,site.y+(rand(s)-.5)*5,{site:site.key});a.hold=1;mobile++;
    if(site.t!=='outpost'&&rand(s)<.2&&['tech_mg','tech_atgm','tech_aa','hz_apc','hz_tank'].includes(type)){var target=alive(s,'il').filter(v=>!U[v.type].building&&dist(v,site)<30).sort((a,b)=>dist(a,site)-dist(b,site))[0];if(target){a.goal={x:target.x,y:target.y};a.raid=1}}}}
   if(site.droneT<=0&&s.time>dif.grace){site.droneT=rule.drones*dif.drone*(.8+rand(s)*.5);var prey=alive(s,'il').filter(v=>!U[v.type].building&&dist(v,site)<rule.droneRange).sort((a,b)=>dist(a,site)-dist(b,site))[0];
    if(prey&&drones<rule.droneMax){var drone=makeUnit(s,'drone','hz',site.x+2,site.y-2,{site:site.key});drone.goal={x:prey.x,y:prey.y};drone.raid=1;emit(s,'רחפן נפץ שוגר מ'+site.n,'drone')}}
  }
+ // Reinforcements: a base under attack calls mobile units from friendly villages and cities within reach.
+ s.aiHelpT=(s.aiHelpT||0)+dt;if(s.aiHelpT>8){s.aiHelpT=0;var ilGround=alive(s,'il').filter(u=>U[u.type].move!=='air');
+  for(var z of s.sites){if(z.owner!=='hz'||!get(s,z.building))continue;var r=S[z.t].radius+6;if(!ilGround.some(u=>dist(u,z)<r))continue;
+   var helpers=hzAll.filter(u=>!U[u.type].building&&u.type!=='drone'&&!u.raid&&u.site&&u.site!==z.key&&dist(u,z)<26&&(s.sites.find(q=>q.key===u.site)||{}).t!=='outpost').sort((a,b)=>dist(a,z)-dist(b,z)).slice(0,dif.help||2);
+   if(helpers.length){helpers.forEach(u=>{u.goal={x:z.x+(rand(s)-.5)*3,y:z.y+(rand(s)-.5)*3};u.raid=1});emit(s,'חיזבאללה מתגבר את '+z.n,'reinforce')}}}
  if(s.time>dif.grace)s.aiAttackT+=dt;if(s.aiAttackT>dif.counter){s.aiAttackT=0;
   // Counterattack: the nearest enemy-held village/city sends its mobile force at the closest Israeli position.
   var ilPos=alive(s,'il').filter(u=>U[u.type].move!=='air');
@@ -162,6 +170,7 @@ function capture(s,dt){for(var site of s.sites){if(site.owner==='il')continue;va
  // Destroy HQ + clear defenders, then hold with infantry; tanks cannot capture.
  if(!get(s,site.building)&&guards.length===0&&present.length){site.capture+=dt*(1+(present.length-1)*.2);
   if(site.capture>=rule.capture){site.owner='il';site.capture=rule.capture;s.captures++;grant(s,rule.bounty);emit(s,site.n+' נכבשה!','capture');s.events.push({kind:'city',key:site.key,name:site.n,time:s.time});
+   if(site.t==='city')emit(s,site.n+' היא עכשיו בסיס קדמי: יחידות חדשות יוצאות ממנה','forward');
    if(site.key==='beirut'){s.won=true;emit(s,'ניצחון! ביירות נכבשה — חזית לבנון הוכרעה','win')}}}
  else if(site.capture>0)site.capture=Math.max(0,site.capture-dt*.38);
 }}
@@ -185,6 +194,6 @@ function inFog(s,x,y){if(!s.fog)return false;if(x<0||y<0||x>=M.cols||y>=M.rows)r
 function save(s){var o={...s,events:[]};return JSON.stringify(o)}
 function restore(raw){try{var o=JSON.parse(raw);if(o.version!==1||!o.sites||!o.units||!DIFF[o.diff])return null;
  o.events=[];o.messages=o.messages||[];o.stats=o.stats||{trophy:0};return o}catch(e){return null}}
-var api={flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
+var api={forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
 root.LF=root.LF||{};root.LF.sim=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

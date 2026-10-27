@@ -178,11 +178,11 @@
                 kamikaze: { dmg: 95, splash: 1.0, vs: { inf: .6, light: 1, armor: .9, bld: .6 } } },
     // Hezbollah structures (the local HQ of each site)
     hz_outpost:{side: 'hz', n: 'מוצב מבוצר', cls: 'bld', armor: 'bld', hp: 1800, speed: 0, vision: 7, size: 1.4, building: true,
-                weapons: [{ n: 'מקלע מבוצר', range: 5.5, dmg: 8, cd: .5, fx: 'bullet', vs: { inf: 1, light: .8, armor: .03, air: .25, drone: .3 } }] },
+                weapons: [{ n: 'מקלע מבוצר', range: 5, dmg: 5, cd: .5, fx: 'bullet', vs: { inf: 1, light: .8, armor: .03, air: .25, drone: .3 } }] },
     hz_village:{side: 'hz', n: 'מפקדת כפר', cls: 'bld', armor: 'bld', hp: 1300, speed: 0, vision: 6, size: 1.2, building: true, weapons: [] },
     hz_city:  { side: 'hz', n: 'מפקדה עירונית', cls: 'bld', armor: 'bld', hp: 3400, speed: 0, vision: 7, size: 1.7, building: true,
                 weapons: [{ n: 'מקלעים', range: 5.5, dmg: 8, cd: .5, fx: 'bullet', vs: { inf: 1, light: .8, armor: .03, air: .25, drone: .3 } }] },
-    hz_main:  { side: 'hz', n: 'מפקדת חיזבאללה', cls: 'bld', armor: 'bld', hp: 7000, speed: 0, vision: 8, size: 2.2, building: true,
+    hz_main:  { side: 'hz', n: 'מפקדת חיזבאללה', cls: 'bld', armor: 'bld', hp: 6000, speed: 0, vision: 8, size: 2.2, building: true,
                 weapons: [{ n: 'מקלעים', range: 6, dmg: 10, cd: .5, fx: 'bullet', vs: { inf: 1, light: .8, armor: .05, air: .3, drone: .3 } }] }
   };
   // what the player can buy, by production line. Vehicles and helis/jets are built one at a time.
@@ -222,9 +222,9 @@
                make: ['hz_inf', 'hz_inf', 'hz_atgm', 'hz_aa', 'tech_mg', 'tech_atgm', 'tech_aa', 'hz_apc', 'hz_tank', 'hz_tank'], drones: 25 }
   };
   var DIFF = {
-    easy:   { n: 'קל',   money: 5000, hp: 1.0, prod: 1.2, dmg: 1.0, base: 150, counter: 300, drone: 1.6, startMul: .7, cap: 60, wave: 4, grace: 180 },
-    normal: { n: 'רגיל', money: 3500, hp: 1.2, prod: .9, dmg: 1.25, base: 110, counter: 200, drone: 1.0, startMul: 1, cap: 90, wave: 6, grace: 120 },
-    hard:   { n: 'קשה',  money: 2800, hp: 1.45, prod: .7, dmg: 1.5, base: 90, counter: 170, drone: .8, startMul: 1.25, cap: 115, wave: 7, grace: 110 }
+    easy:   { n: 'קל',   money: 4500, hp: 1.15, prod: .95, dmg: 1.15, base: 130, counter: 260, drone: 1.4, startMul: 1, cap: 80, wave: 5, grace: 180, help: 2 },
+    normal: { n: 'רגיל', money: 3500, hp: 1.2, prod: .9, dmg: 1.25, base: 110, counter: 200, drone: 1.0, startMul: 1, cap: 90, wave: 6, grace: 120, help: 2 },
+    hard:   { n: 'קשה',  money: 3000, hp: 1.3, prod: .8, dmg: 1.35, base: 100, counter: 170, drone: .8, startMul: 1.25, cap: 115, wave: 7, grace: 110, help: 2 }
   };
   var data = { MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
     ROADS: ROADS, FORESTS: FORESTS, IL_TOWNS: IL_TOWNS, SITES: SITES, HOME: HOME, UNITS: UNITS, BUILD: BUILD, QUEUE_MAX: QUEUE_MAX,
