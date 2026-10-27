@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#03080f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>מגן השמיים · הגנה אווירית מול איראן</title>
+<meta name="description" content="משחק Tower Defense בדפדפן: הגנו על ישראל מרחפנים, מל״טים, טילי שיוט וטילים בליסטיים עם כיפת ברזל, שרביט קסמים, חץ ומגן אור.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="app">
+  <canvas id="cv" aria-label="מפת המזרח התיכון ושדה הקרב"></canvas>
+
+  <header id="hud">
+    <div class="stat" title="תקציב"><span class="lbl">תקציב</span><b id="budget">₪0</b></div>
+    <div class="stat"><span class="lbl">גל</span><b id="wave">0/8</b></div>
+    <div class="stat" id="hpbox" title="ערים שנותרו"><span class="lbl">ערים</span><b id="cities">6/6</b></div>
+    <div class="stat" title="ניקוד"><span class="lbl">ניקוד</span><b id="score">0</b></div>
+    <div class="spacer"></div>
+    <button id="btnView" class="ic" aria-label="החלף תצוגה" title="החלף תצוגה">⤢</button>
+    <button id="btnSound" class="ic" aria-label="סאונד" title="סאונד">🔇</button>
+    <button id="btnSpeed" class="ic" aria-label="מהירות" title="מהירות">x1</button>
+    <button id="btnPause" class="ic" aria-label="השהה" title="השהה">❚❚</button>
+    <button id="btnHelp" class="ic" aria-label="עזרה" title="איך משחקים">?</button>
+  </header>
+
+  <aside id="panel">
+    <div id="pDefense" class="pane">
+      <button class="tw" data-t="dome"><span class="sw dome"></span><b>כיפת ברזל</b><small>₪150</small></button>
+      <button class="tw" data-t="beam"><span class="sw beam"></span><b>מגן אור</b><small>₪250</small></button>
+      <button class="tw" data-t="sling"><span class="sw sling"></span><b>שרביט קסמים</b><small>₪300</small></button>
+      <button class="tw" data-t="arrow"><span class="sw arrow"></span><b>חץ</b><small>₪450</small></button>
+      <button id="btnAir" class="tw air"><span class="sw jet"></span><b>חיל האוויר</b><small id="airLock">🔒 גל 4</small></button>
+    </div>
+    <div id="pAir" class="pane hidden">
+      <button id="btnBack" class="tw back"><b>→ הגנה</b></button>
+      <button class="buy" data-j="f15"><b>F-15</b><small>₪350 · 8 חימושים</small></button>
+      <button class="buy" data-j="f35"><b>F-35</b><small>₪600 · חמקן</small></button>
+      <div id="jets"></div>
+    </div>
+  </aside>
+
+  <div id="hint" class="hidden"></div>
+  <div id="banner" class="hidden"></div>
+  <div id="alert" class="hidden">⚠ שיגור בליסטי</div>
+  <button id="btnNext" class="hidden">התחל גל 1 ▶</button>
+
+  <section id="intro" class="modal" aria-labelledby="introTitle">
+    <div class="card">
+      <h1 id="introTitle">מגן השמיים</h1>
+      <p class="sub">איראן תוקפת. אתם מפקדי מערך ההגנה האווירית.</p>
+      <div id="diffRow" class="diff" role="radiogroup" aria-label="רמת קושי"><span class="dl">רמת קושי:</span>
+        <button class="dbtn" data-d="easy" role="radio" aria-checked="false">קל</button><button class="dbtn sel" data-d="normal" role="radio" aria-checked="true">רגיל</button><button class="dbtn" data-d="hard" role="radio" aria-checked="false">קשה</button></div>
+      <div class="startRow"><button id="btnContinue" class="primary alt hidden">המשך משחק ▶</button><button id="btnStart" class="primary">משחק חדש ▶</button></div>
+      <p id="bestLine" class="best"></p>
+      <ul>
+        <li><b>בנו סוללות</b>: בחרו מערכת והקישו בתוך שטח ישראל, כולל יהודה ושומרון והגולן.</li>
+        <li><span class="sw dome"></span><b>כיפת ברזל</b> זולה, טווח קצר, נגד רחפנים וטילי שיוט.</li>
+        <li><span class="sw beam"></span><b>מגן אור</b> לייזר, כמעט חינם לירייה, מעולה נגד רחפנים.</li>
+        <li><span class="sw sling"></span><b>שרביט קסמים</b> טווח בינוני, טילי שיוט וגם בליסטיים.</li>
+        <li><span class="sw arrow"></span><b>חץ</b> טווח ארוך, הכי טוב נגד בליסטיים (מגל 4). יקר.</li>
+        <li>כל יירוט עולה כסף ומחזיר פרס. כל עיר עומדת ב-5 פגיעות (הנקודות מתחת לעיר). המשחק נגמר רק כשכל הערים הושמדו.</li>
+        <li>מגל 4: בסיסי <b>רמת דוד</b> ו<b>נבטים</b> מתעוררים וחיל האוויר נפתח. המטוסים ממריאים ונטענים בבסיסים, ואיראן תתקוף גם אותם. בחרו מטוס והקישו על המפה לסיור, או על אתר שיגור / סוללת נ״מ לתקיפה.</li>
+        <li><b>אתרי שיגור</b> באיראן ובתימן מתמחים: <span class="lk d">◆</span> רחפנים ומל״טים · <span class="lk c">■</span> מל״טים וטילי שיוט · <span class="lk b">▲</span> בליסטיים וטילי שיוט. אתר שהופצץ מושבת בגל הבא, חוזר ל-50% בגל שאחריו ולמלא בגל שלאחר מכן. תקיפה חוזרת מאפסת אותו.</li>
+        <li>ההתקדמות נשמרת אוטומטית בסוף כל גל.</li>
+      </ul>
+      <p class="tip">טיפ: צביטה לזום, גרירה להזזה. עדיף לשחק לרוחב.</p>
+    </div>
+  </section>
+
+  <section id="over" class="modal hidden">
+    <div class="card">
+      <h2 id="overTitle">המשחק נגמר</h2>
+      <p id="overText"></p>
+      <p id="overBest" class="best"></p>
+      <button id="btnRestart" class="primary">שחק שוב ↻</button>
+    </div>
+  </section>
+
+  <div id="rotate" class="hidden"><div>📱↻<br>סובבו את הטלפון לרוחב<br><small>אפשר גם להמשיך כך</small></div></div>
+</main>
+<script src="geo.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
