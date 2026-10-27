@@ -24,7 +24,7 @@ const ISR=countries.find(c=>c.iso==='ISR');
 function inPoly(pt,pts){let ins=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const a=pts[i],b=pts[j];if(((a.y>pt.y)!==(b.y>pt.y))&&(pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x))ins=!ins}return ins}
 function segD(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy||1;const t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/l,0,1);return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)}
 const nearIsrael=(p,buf)=>ISR&&ISR.rings.some(r=>r.some((q,i)=>segD(p,q,r[(i+1)%r.length])<buf));
-const inIsrael=p=>ISR&&(ISR.rings.some(r=>inPoly(p,r))||nearIsrael(p,9));
+const inIsrael=p=>ISR&&(ISR.rings.some(r=>inPoly(p,r))||nearIsrael(p,9)||(S&&S.cities.some(c=>!CITIES.some(v=>v[0]===c.n)&&!c.dead&&dist(c,p)<24)));
 const LABELS=[['ישראל',34.9,30.02,1],['איראן',54,32.6,0],['עיראק',43.4,33.2,0],['סוריה',38.6,35.1,0],['ירדן',36.9,30.9,0],['ערב הסעודית',44,25,0],['טורקיה',35,39.2,0],['מצרים',29.8,27.2,0],['תימן',47,15.9,0],['לבנון',35.9,34.05,2],['הים התיכון',30.8,33.4,3],['הים האדום',38.6,21.4,3],['המפרץ הפרסי',51.2,27.2,3],['הים הכספי',50.8,39.6,3]].map(l=>({t:l[0],...P(l[1],l[2]),k:l[3]}));
 
 // ---------- static data ----------
@@ -81,7 +81,7 @@ let BONUS0=200,BONUSW=50;
 let S;
 function newState(d){d=DIFF[d]?d:diff;
   return {diff:d,score:0,budget:Math.round(900*DIFF[d].budget),wave:0,inWave:false,over:false,won:false,paused:false,speed:1,time:0,
-    cities:CITIES.map(c=>({n:c[0],...P(c[1],c[2]),w:c[3],side:c[4],hp:HITS,flash:0,kind:'city',dead:false})),
+    cities:[...CITIES,...(window.SHARED?window.SHARED.capturedCities().map(c=>[c.n,c.lon,c.lat,c.w,-1]):[])].map(c=>({n:c[0],...P(c[1],c[2]),w:c[3],side:c[4],hp:HITS,flash:0,kind:'city',dead:false})),
     bases:AIRBASES.map(b=>({n:b[0],...P(b[1],b[2]),side:b[3],hp:HITS,flash:0,kind:'base',dead:false,active:false,wake:0})),
     launchers:LAUNCH.map(l=>({n:l[0],...P(l[1],l[2]),cc:l[3],kind:l[4],ly:l[5]||15,struck:-99,smoke:0})),
     sams:SAMPOS.map(s=>({...P(s[0],s[1]),alive:true,cd:rnd(0,2),range:170,ang:rnd(0,6)})),
@@ -95,7 +95,7 @@ let mapDirty=true, view='theater';
 function viewRect(){const land=SW>SH;const top=40,right=land?96:0,bottom=land?0:66;return {x:0,y:top,w:SW-right,h:SH-top-bottom}}
 function fitBox(lon0,lat0,lon1,lat1){const a=P(lon0,lat1),b=P(lon1,lat0),r=viewRect();const s=Math.min(r.w/(b.x-a.x),r.h/(b.y-a.y));
   return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,s,r}}
-function camTo(v,instant){view=v;const f=v==='israel'?fitBox(33.2,29.3,36.6,33.4):fitBox(30.5,23.5,61,39.8);
+function camTo(v,instant){view=v;const f=v==='israel'?fitBox(33.2,29.3,36.6,S&&S.cities.some(c=>c.n==='ביירות')?34.1:S&&S.cities.some(c=>c.n==='צידון')?33.75:33.4):fitBox(30.5,23.5,61,39.8);
   const r=viewRect();cam.tx=f.x-(r.x+r.w/2-SW/2)/f.s;cam.ty=f.y-(r.y+r.h/2-SH/2)/f.s;cam.ts=f.s;cam.anim=true;
   if(instant){cam.x=cam.tx;cam.y=cam.ty;cam.s=cam.ts;cam.anim=false}mapDirty=true}
 const w2s=(x,y)=>({x:(x-cam.x)*cam.s+SW/2,y:(y-cam.y)*cam.s+SH/2});
@@ -139,15 +139,16 @@ function buildWave(n){const W=WAVES[n-1],D=DIFF[S.diff],q=[];
     let L;if(typeof e.li==='string'){if(salvoL[e.li]===undefined)salvoL[e.li]=pickLauncher(ls,n>=5?.18:0);L=salvoL[e.li]}else L=pickLauncher(ls,.2);
     e.li=S.launchers.indexOf(L);const cap=capAt(L,n);if(cap<=0||(cap<1&&Math.random()>cap))e.cancel=true}
   q.sort((a,b)=>a.t-b.t);return q.filter(e=>!e.cancel)}
-function startWave(){if(S.inWave||S.over)return;S.started=true;S.wave++;S.inWave=true;S.waveT=0;
+function syncCapturedCities(){if(!window.SHARED)return;for(const c of window.SHARED.capturedCities()){if(!S.cities.some(city=>city.n===c.n))S.cities.push({n:c.n,...P(c.lon,c.lat),w:c.w,side:-1,hp:HITS,flash:0,kind:'city',dead:false});}}
+function startWave(){if(S.inWave||S.over)return;syncCapturedCities();S.started=true;S.wave++;S.inWave=true;S.waveT=0;
   if(S.wave>=AIR_WAVE)for(const b of S.bases)if(!b.active&&!b.dead){b.active=true;b.wake=1;boom(b.x,b.y,4,'#3cc8ff')}S.queue=buildWave(S.wave);S.waveTotal=S.queue.length;
   $('btnNext').classList.add('hidden');banner('גל '+S.wave+(S.wave===AIR_WAVE?' · בסיסי רמת דוד ונבטים התעוררו ✈':''));
   if(S.wave>=AIR_WAVE)$('airLock').textContent='פתוח';updateUI()}
-function endWave(){S.inWave=false;const bonus=Math.round((BONUS0+S.wave*BONUSW)*DIFF[S.diff].bonus);S.budget+=bonus;addScore(100*S.wave);
+function endWave(){S.inWave=false;const bonus=Math.round((BONUS0+S.wave*BONUSW)*DIFF[S.diff].bonus);S.budget+=bonus;if(window.SHARED)window.SHARED.addBudget(bonus,'גל '+S.wave);addScore(100*S.wave);
   for(const t of S.towers){t.ammo=TW[t.type].mag;t.refT=0}
   if(S.wave>=WAVES.length){S.won=true;gameOver(true);return}
   recordBest();saveGame();
-  banner('הגל נהדף! בונוס ₪'+bonus);$('btnNext').textContent='התחל גל '+(S.wave+1)+' ▶';$('btnNext').classList.remove('hidden');
+  banner('הגל נהדף! בונוס ₪'+bonus+' למלחמה');$('btnNext').textContent='התחל גל '+(S.wave+1)+' ▶';$('btnNext').classList.remove('hidden');
   if(S.wave+1>=AIR_WAVE)for(const b of S.bases)if(!b.active&&!b.dead){b.active=true;b.wake=1;boom(b.x,b.y,4,'#3cc8ff')}
   if(S.wave+1===AIR_WAVE)setTimeout(()=>hint('בסיסי רמת דוד ונבטים התעוררו: חיל האוויר זמין ✈ (מעכשיו איראן תוקפת גם אותם)',4500),2300);updateUI()}
 function targetList(ye){const l=S.cities.filter(c=>!c.dead).map(c=>[c,ye?(c.n==='אילת'?1.2:c.w*.6):c.w]);
@@ -431,7 +432,7 @@ function renderJets(){const box=$('jets');box.innerHTML='';
     b.innerHTML='<b>'+JT[j.type].n+' #'+j.id+'</b><small>'+st+' · '+j.ammo+'/'+JT[j.type].ammo+'</small>';
     if(j.alive)b.onclick=()=>{selJet=selJet===j.id?null:j.id;selType=null;if(selJet){if(view!=='theater'){autoZoomFrom=view;camTo('theater')}hint('הקישו על המפה לסיור, או על אתר שיגור / נ״מ לתקיפה',3000)}renderJets();updateUI()};
     box.appendChild(b)}}
-function updateUI(){$('budget').textContent='₪'+Math.floor(S.budget);$('score').textContent=S.score.toLocaleString('he-IL');$('wave').textContent=S.wave+'/'+WAVES.length;
+function updateUI(){$('budget').textContent='₪'+Math.floor(S.budget);$('warBudget').textContent='₪'+(window.SHARED?window.SHARED.budget():0);$('score').textContent=S.score.toLocaleString('he-IL');$('wave').textContent=S.wave+'/'+WAVES.length;
   const alive=S.cities.filter(c=>!c.dead).length;$('cities').textContent=alive+'/'+S.cities.length;$('cities').className=alive<=2?'low':alive<S.cities.length?'mid':'';
   document.querySelectorAll('.tw[data-t]').forEach(b=>{b.classList.toggle('sel',selType===b.dataset.t);b.classList.toggle('poor',S.budget<TW[b.dataset.t].cost)});
   document.querySelectorAll('.buy').forEach(b=>b.classList.toggle('poor',S.budget<JT[b.dataset.j].cost));
