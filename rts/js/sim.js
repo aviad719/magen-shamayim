@@ -39,7 +39,8 @@ function make(seed,diff){diff=DIFF[diff]?diff:'normal';var s={version:1,seed:see
  // Sparse starting garrisons; outpost anti-air and ATGM are real tactical threats.
  var start=rule.start.filter((_,i)=>rand(s)<(i<2?1:DIFF[diff].startMul));
  for(var j=0;j<start.length;j++){var a=(j*2.4)+rand(s),r=2.0+(j%3)*.75;var u=makeUnit(s,start[j],'hz',clamp(z.x+Math.cos(a)*r,1,M.cols-2),clamp(z.y+Math.sin(a)*r,1,M.rows-2),{site:z.key});u.hold=1;}
- }s.messages=['ברוכים הבאים לחזית לבנון — כיבוש ביירות מנצח'];return s;}
+ }var first=s.sites.filter(z=>z.t==='village').sort((a,b)=>dist(a,h)-dist(b,h))[0];s.hint=first.key;
+ s.messages=['יעד ראשון: '+first.n+' — כבשו אותו עם חי״ר כדי להרוויח הכנסה','ברוכים הבאים לחזית לבנון — כיבוש ביירות מנצח'];return s;}
 function get(s,id){return s.units.find(u=>u.id===id&&u.hp>0)}
 function alive(s,side){return s.units.filter(u=>u.hp>0&&!u.carriedBy&&(!side||u.side===side))}
 function emit(s,text,kind){if(s.messages[0]!==text)s.messages.unshift(text);s.messages=s.messages.slice(0,6);s.events.push({kind:kind||'message',text,time:s.time})}
@@ -191,7 +192,7 @@ function vision(s){if(VIS.s===s&&Math.abs(s.time-VIS.t)<.25&&VIS.g)return VIS.g;
  for(var u of s.units)if(u.side==='il'&&u.hp>0&&!u.carriedBy)mark(u.x,u.y,(U[u.type].vision||5)*1.9);
  for(var site of s.sites)if(site.owner==='il')mark(site.x,site.y,10);VIS={s,t:s.time,g};return g}
 function inFog(s,x,y){if(!s.fog)return false;if(x<0||y<0||x>=M.cols||y>=M.rows)return true;return !vision(s)[Math.floor(y)*M.cols+Math.floor(x)]}
-function save(s){var o={...s,events:[]};return JSON.stringify(o)}
+function save(s){var o={...s,events:[],units:s.units.filter(u=>u.hp>0||u.id===s.hq)};return JSON.stringify(o)}
 function restore(raw){try{var o=JSON.parse(raw);if(o.version!==1||!o.sites||!o.units||!DIFF[o.diff])return null;
  o.events=[];o.messages=o.messages||[];o.stats=o.stats||{trophy:0};return o}catch(e){return null}}
 var api={forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};

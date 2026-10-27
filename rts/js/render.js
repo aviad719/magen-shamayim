@@ -67,6 +67,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     if(site.owner==='il'){ctx.fillStyle='#fff';ctx.fillRect(1,-30,13,9);ctx.fillStyle='#2f6fd6';ctx.fillRect(1,-29,13,1.5);ctx.fillRect(1,-24,13,1.5)}else if(bAlive){ctx.fillStyle='#f3d21a';ctx.fillRect(1,-30,13,9);ctx.fillStyle='#2f8f3a';ctx.fillRect(5,-27,5,3)}
     if(site.owner==='il'||bAlive){ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(1,-30);ctx.lineTo(1,-12);ctx.stroke()}
     ctx.restore();radius=(site.t==='outpost'?12:site.t==='main'?22:site.t==='city'?17:11)*k;
+    if(s.hint===site.key&&site.owner==='hz'&&s.captures===0){var pulse=(s.time*2)%1;ctx.strokeStyle='rgba(255,240,140,'+(1-pulse)+')';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,radius+6+pulse*16,0,7);ctx.stroke()}
     var bu=site.owner==='hz'&&S.get(s,site.building);if(bu&&bu.hp<bu.maxHp){var bw=radius*2.6;ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(p.x-bw/2,p.y-radius-6,bw,4);ctx.fillStyle=bu.hp/bu.maxHp>.4?'#ffb35c':'#ff5a4a';ctx.fillRect(p.x-bw/2,p.y-radius-6,bw*bu.hp/bu.maxHp,4)}
     if(false){ctx.strokeStyle='#ffe48a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x-radius*.6,p.y-radius*.6);ctx.lineTo(p.x+radius*.6,p.y+radius*.6);ctx.moveTo(p.x+radius*.6,p.y-radius*.6);ctx.lineTo(p.x-radius*.6,p.y+radius*.6);ctx.stroke()}
     if(site.capture>0&&site.owner==='hz'){ctx.strokeStyle='#52ddc7';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,radius+6,-Math.PI/2,-Math.PI/2+(site.capture/ru.capture)*Math.PI*2);ctx.stroke()}
@@ -83,6 +84,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     ctx.save();ctx.translate(p.x,p.y);if(sp.move==='air'){ctx.fillStyle='rgba(0,0,0,.30)';ctx.beginPath();ctx.ellipse(4,5,sz*1.1,sz*.6,0,0,7);ctx.fill()}
     if(selected.has(u.id)){ctx.strokeStyle='#fff5bc';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);ctx.beginPath();ctx.arc(0,0,sz+5,0,7);ctx.stroke();ctx.setLineDash([])}
     drawUnit(u,sp,own,sz,s.time);
+    if(u.type==='givati'&&u.hold>2&&!u.goal){ctx.fillStyle='rgba(190,140,255,.9)';ctx.beginPath();ctx.moveTo(0,-sz-9);ctx.lineTo(5,-sz-7);ctx.lineTo(4,-sz-2);ctx.lineTo(0,-sz);ctx.lineTo(-4,-sz-2);ctx.lineTo(-5,-sz-7);ctx.closePath();ctx.fill()}
     if(u.flash){ctx.globalAlpha=Math.min(1,u.flash/.22);ctx.fillStyle='#fff8b4';ctx.beginPath();ctx.arc(0,0,sz*.45,0,7);ctx.fill();ctx.globalAlpha=1}
     ctx.restore();
     // Health bars, enemy/Israeli IDs, group number, soldier count.

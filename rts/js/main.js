@@ -40,7 +40,7 @@ var canvas=$('world');canvas.addEventListener('pointerdown',e=>{e.preventDefault
  if(pointers.size===1)gesture={x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,dragged:false,select:mode==='select'};
  else if(pointers.size===2){var a=[...pointers.values()];gesture={pinch:true,d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:ren.view.z,cx:ren.view.x,cy:ren.view.y};box=null}});
 canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(!gesture)return;
- if(pointers.size===2){var a=[...pointers.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(gesture.pinch)ren.camera(null,null,gesture.z*d/gesture.d);return}
+ if(pointers.size===2){var a=[...pointers.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(gesture.pinch){var mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2,before=ren.world(mx,my);ren.camera(null,null,gesture.z*d/gesture.d);var after=ren.world(mx,my);ren.camera(ren.view.x+before.x-after.x,ren.view.y+before.y-after.y)}return}
  if(gesture.pinch)return;var dx=e.clientX-gesture.lastX,dy=e.clientY-gesture.lastY;
  if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>6)gesture.dragged=true;
  if(gesture.dragged){if(gesture.select){box={x:Math.min(gesture.x,e.clientX),y:Math.min(gesture.y,e.clientY),w:Math.abs(e.clientX-gesture.x),h:Math.abs(e.clientY-gesture.y)}}
