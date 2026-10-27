@@ -63,7 +63,7 @@ $('load').onclick=()=>{var army=selectedUnits().filter(u=>u.soldiers);var transp
  var n=transport&&Sim.load(s,transport.id,army.map(u=>u.id));toast(n?n+' מחלקות עלו ל'+D.UNITS[transport.type].n:'קרבו את החי״ר לנמר/מסוק פנוי');updateUI()};
 $('unload').onclick=()=>{var n=selectedUnits().reduce((x,u)=>x+Sim.unload(s,u.id),0);toast(n?n+' מחלקות ירדו':'בחרו נמר או מסוק עם כוחות');updateUI()};
 $('build').onclick=()=>{var e=selectedUnits().find(u=>u.type==='engineer');var id=e&&Sim.buildPost(s,e.id);toast(id?'העמדה נבנית ליד ההנדסה':'בחרו מחלקת הנדסה עם תקציב פנוי');updateUI()};
-$('stop').onclick=()=>{for(var u of selectedUnits()){u.goal=null;u.path=null;u.target=0;u.hold=3}toast('הכוח מחזיק את השטח')};
+$('stop').onclick=()=>{for(var u of selectedUnits()){u.goal=null;u.path=null;u.target=0;u.hold=3;u.stand=1}toast('הכוח מחזיק את השטח ולא רודף')};
 window.addEventListener('resize',()=>ren.resize());document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else if(!modal)takeWarBudget()});
 function frame(now){var dt=Math.min(.10,(now-last)/1000);last=now;if(!modal&&!s.paused){acc+=dt;var steps=0;while(acc>=1/30&&steps<4){Sim.step(s,1/30);acc-=1/30;steps++;
  for(var ev of s.events){if(['shot','hit','explosion','trophy','repair'].includes(ev.kind))fx.push(ev);

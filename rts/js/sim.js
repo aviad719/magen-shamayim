@@ -51,7 +51,7 @@ function buy(s,type){if(!queue(s,type))return false; // "buy" queues only, to re
  return true}
 function setOrder(s,ids,p,attackId){p=clampPos(p);var idsToCommand=new Set(ids);for(var id of ids){var u=get(s,id);if(u&&u.side==='il'&&u.group)for(var ally of s.units)if(ally.hp>0&&ally.group===u.group)idsToCommand.add(ally.id)}
  var n=0, i=0;for(var id of idsToCommand){var u=get(s,id);if(!u||u.side!=='il'||u.carriedBy||U[u.type].building||u.flight)continue;
- var offset={x:((i%4)-1.5)*1.3,y:Math.floor(i/4)*1.3},at=clampPos({x:p.x+offset.x,y:p.y+offset.y});u.goal=at;u.target=attackId||0;u.hold=0;u.path=null;n++;i++}return n}
+ var offset={x:((i%4)-1.5)*1.3,y:Math.floor(i/4)*1.3},at=clampPos({x:p.x+offset.x,y:p.y+offset.y});u.goal=at;u.target=attackId||0;u.hold=0;u.path=null;u.stand=0;n++;i++}return n}
 function group(s,ids){var a=ids.map(id=>get(s,id)).filter(u=>u&&u.side==='il'&&!u.carriedBy);if(a.length<2)return 0;var g=++s.nextGroup;a.forEach(u=>u.group=g);emit(s,a.length+' יחידות אוגדו','group');return g}
 function split(s,ids){var a=ids.map(id=>get(s,id)).filter(u=>u&&u.side==='il'&&!u.carriedBy);
  if(a.length>1){var mid=Math.ceil(a.length/2),g1=++s.nextGroup,g2=++s.nextGroup;a.forEach((u,i)=>u.group=i<mid?g1:g2);emit(s,'פיצול: '+mid+' + '+(a.length-mid),'split');return [a.slice(0,mid).map(u=>u.id),a.slice(mid).map(u=>u.id)]}
@@ -90,7 +90,8 @@ function inflict(s,target,damage,fx,randVal){if(target.hp<=0)return {damage:0,in
 function attack(s,attacker,target,weapon){var a=U[attacker.type],t=U[target.type],factor=weapon.vs[t.armor]||0;if(!factor)return false;
  var n=a.soldiers?attacker.soldiers:1,terrainType=ground(attacker.x,attacker.y),power=bonus(attacker,terrainType,false).atk;
  var dmg=weapon.dmg*factor*power*(weapon.perSquad?1:n)*((attacker.side==='hz')?DIFF[s.diff].dmg:1);
- target.lastHit=attacker.type;var result=inflict(s,target,dmg,weapon.fx);s.events.push({kind:'shot',x:attacker.x,y:attacker.y,tx:target.x,ty:target.y,fx:weapon.fx,side:attacker.side,time:s.time});
+ target.lastHit=attacker.type;target.lastBy=attacker.id;target.lastHitT=s.time;var result=inflict(s,target,dmg,weapon.fx);
+ if(target.id===s.hq&&s.time-(s.hqAlertT||-99)>25){s.hqAlertT=s.time;emit(s,'⚠ בסיס פיקוד צפון תחת מתקפה!','alert')}s.events.push({kind:'shot',x:attacker.x,y:attacker.y,tx:target.x,ty:target.y,fx:weapon.fx,side:attacker.side,time:s.time});
  if(attacker.ammo!==null&&weapon.fx!=='bullet')attacker.ammo=Math.max(0,attacker.ammo-1);return result}
 function canHit(u,t,weapon){return !!(weapon.vs[U[t.type].armor]&&dist(u,t)<=weapon.range)}
 // Movement: a Dijkstra flow field per (goal cell, movement class), cached, so units route around the sea,
@@ -135,6 +136,7 @@ function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=M
  if(u.side==='hz'&&!sp.building&&!u.goal){var threat=nearest(s,u,(sp.vision||6)*1.25,v=>v.side==='il');var home=u.site&&s.sites.find(q=>q.key===u.site),leash=home?(home.t==='outpost'?7:11):99;
   if(threat&&dist(u,threat)>(((sp.weapons||[])[0]||{}).range||3)&&(u.raid||!home||dist(threat,home)<leash+(home.t==='outpost'?0:4)))u.goal={x:threat.x,y:threat.y};
   else if(!threat){if(u.raid)u.raid=0;if(home&&home.owner==='hz'&&dist(u,home)>leash)u.goal={x:home.x+(rand(s)-.5)*4,y:home.y+(rand(s)-.5)*4}}}
+ if(u.side==='il'&&!u.goal&&!u.target&&!u.stand&&!sp.building&&u.lastBy&&s.time-u.lastHitT<3){var att=get(s,u.lastBy);if(att&&dist(u,att)<10&&!(sp.weapons||[]).some(w=>canHit(u,att,w)))u.goal={x:att.x,y:att.y}}
  if(u.side==='il'&&u.target){var focus=get(s,u.target);if(focus&&dist(u,focus)>(sp.weapons[0]||{range:0}).range)u.goal={x:focus.x,y:focus.y};else if(!focus)u.target=0}
  if(sp.kamikaze){var victim=nearest(s,u,(sp.vision||6)*2);if(victim&&dist(u,victim)<1.3){victim.lastHit='drone';inflict(s,victim,sp.kamikaze.dmg*(sp.kamikaze.vs[U[victim.type].armor]||0), 'blast');u.hp=0;s.events.push({kind:'explosion',x:u.x,y:u.y,time:s.time})}return}
  for(var wi=0;wi<sp.weapons.length;wi++){var weapon=sp.weapons[wi];u.weaponCd[wi]=Math.max(0,(u.weaponCd[wi]||0)-dt);if(u.weaponCd[wi]>0||u.ammo===0)continue;
