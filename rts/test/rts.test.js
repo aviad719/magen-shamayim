@@ -56,7 +56,7 @@ test('war budget: TD waves add to the shared budget, the RTS takes it',()=>{SHAR
  SHARED.addBudget(1200,'גל 3');SHARED.addBudget(800,'גל 4');assert.strictEqual(SHARED.budget(),2000);assert.strictEqual(SHARED.takeBudget(),2000);assert.strictEqual(SHARED.budget(),0);
  const game=fs.readFileSync(path.join(__dirname,'../../tower-defense/site/game.js'),'utf8');assert.match(game,/SHARED\.addBudget\(/)});
 
-test('save and restore round-trip',()=>{const s=Sim.make(5,'easy');for(let i=0;i<300;i++)Sim.step(s,1/30);const o=Sim.restore(Sim.save(s));assert.ok(o);assert.strictEqual(o.units.length,s.units.length);assert.strictEqual(o.diff,'easy')});
+test('save and restore round-trip',()=>{const s=Sim.make(5,'easy');for(let i=0;i<300;i++)Sim.step(s,1/30);const o=Sim.restore(Sim.save(s));assert.ok(o);assert.strictEqual(o.units.length,s.units.filter(u=>u.hp>0||u.id===s.hq).length);assert.strictEqual(Sim.alive(o).length,Sim.alive(s).length);assert.strictEqual(o.diff,'easy')});
 
 test('pathing: a tank ordered across the Litani reaches the far bank via a bridge',()=>{const s=fresh();const m=at(s,'merkava','il',30,96);const goal={x:37,y:75};
  Sim.setOrder(s,[m.id],goal);for(let i=0;i<30*120&&m.goal;i++)Sim.step(s,1/30);assert.ok(Sim.dist(m,goal)<2.5,'tank at '+m.x.toFixed(1)+','+m.y.toFixed(1))});
