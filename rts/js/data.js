@@ -114,28 +114,30 @@
   // weapon.vs = damage multiplier per armour class. Infantry weapons deal dmg per soldier.
   var UNITS = {
     // ===== Israel =====
-    golani:   { side: 'il', n: 'גולני', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.15, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#8a5a2b',
+    golani:   { side: 'il', n: 'גולני', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.15, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#8a5a2b', supply: { ammo: 100, use: [.3, 2] },
                 bonus: 'urban', desc: 'חי״ר. הכי טובים בשטח בנוי (כפרים וערים)',
                 weapons: [{ n: 'רובים', range: 4.5, dmg: 1.4, cd: 1.0, fx: 'bullet', vs: { inf: 1, light: .6, armor: .08, bld: .15, drone: .3, air: .05 } },
                           { n: 'לאו', range: 4, dmg: 22, cd: 6, fx: 'rocket', vs: { inf: .3, light: 1, armor: .55, bld: .6 } }] },
-    nahal:    { side: 'il', n: 'נח״ל', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.2, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#3e9b3e',
+    nahal:    { side: 'il', n: 'נח״ל', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.2, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#3e9b3e', supply: { ammo: 100, use: [.3, 2] },
                 bonus: 'forest', desc: 'חי״ר. הכי טובים בשטח מיוער',
                 weapons: [{ n: 'רובים', range: 4.5, dmg: 1.4, cd: 1.0, fx: 'bullet', vs: { inf: 1, light: .6, armor: .08, bld: .15, drone: .3, air: .05 } },
                           { n: 'לאו', range: 4, dmg: 22, cd: 6, fx: 'rocket', vs: { inf: .3, light: 1, armor: .55, bld: .6 } }] },
-    givati:   { side: 'il', n: 'גבעתי', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.1, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#8e3fa6',
+    givati:   { side: 'il', n: 'גבעתי', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.1, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#8e3fa6', supply: { ammo: 100, use: [.3, 2] },
                 bonus: 'hold', desc: 'חי״ר. הכי טובים בהגנה ובהחזקת שטח (כשהם עומדים)',
                 weapons: [{ n: 'רובים', range: 4.5, dmg: 1.4, cd: 1.0, fx: 'bullet', vs: { inf: 1, light: .6, armor: .08, bld: .15, drone: .3, air: .05 } },
                           { n: 'לאו', range: 4, dmg: 22, cd: 6, fx: 'rocket', vs: { inf: .3, light: 1, armor: .55, bld: .6 } }] },
-    engineer: { side: 'il', n: 'הנדסה', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 11, speed: 1.1, vision: 5, cost: 400, time: 9, q: 'inf', move: 'foot', beret: '#7d8790',
+    engineer: { side: 'il', n: 'הנדסה', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 11, speed: 1.1, vision: 5, cost: 400, time: 9, q: 'inf', move: 'foot', beret: '#7d8790', supply: { ammo: 100, use: [.35] },
                 engineer: true, desc: 'בונים עמדות רואה-יורה ומתקנים טנקים ונמרים פגועים',
                 weapons: [{ n: 'רובים', range: 4, dmg: .9, cd: 1.1, fx: 'bullet', vs: { inf: 1, light: .5, armor: .05, bld: .1, drone: .3 } }] },
-    merkava:  { side: 'il', n: 'מרכבה סימן 4', cls: 'veh', armor: 'armor', hp: 420, speed: 1.9, vision: 7, cost: 1100, time: 15, q: 'veh', move: 'track', size: 0.85,
+    merkava:  { side: 'il', n: 'מרכבה סימן 4', cls: 'veh', armor: 'armor', hp: 420, speed: 1.9, vision: 7, cost: 1100, time: 15, q: 'veh', move: 'track', size: 0.85, supply: { ammo: 100, use: [1.6, .1], fuel: 100, burn: .6 },
                 trophy: { charges: 4, chance: 0.7, reload: 25 }, desc: 'טנק עם מעיל רוח: סיכוי ליירט טילי נ״ט',
                 weapons: [{ n: 'תותח 120', range: 6.5, dmg: 70, cd: 2.4, fx: 'shell', vs: { inf: .75, light: 1.2, armor: 1, bld: 1.1 } },
                           { n: 'מקלע', range: 5, dmg: 6, cd: .5, fx: 'bullet', vs: { inf: 1, light: .5, armor: 0, drone: .7, bld: .05 } }] },
-    namer:    { side: 'il', n: 'נמר', cls: 'veh', armor: 'armor', hp: 360, speed: 2.1, vision: 6, cost: 750, time: 12, q: 'veh', move: 'track', size: 0.8,
+    namer:    { side: 'il', n: 'נמר', cls: 'veh', armor: 'armor', hp: 360, speed: 2.1, vision: 6, cost: 750, time: 12, q: 'veh', move: 'track', size: 0.8, supply: { ammo: 100, use: [.2], fuel: 100, burn: .5 },
                 carry: 16, desc: 'נגמ״ש כבד: נושא עד 2 מחלקות (16 לוחמים)',
                 weapons: [{ n: 'עמדה נשלטת', range: 5.5, dmg: 7, cd: .45, fx: 'bullet', vs: { inf: 1, light: .8, armor: .05, drone: .9, bld: .1 } }] },
+    truck:    { side: 'il', n: 'משאית אספקה', cls: 'veh', armor: 'light', hp: 140, speed: 2.4, vision: 5, cost: 300, time: 8, q: 'veh', move: 'wheel', size: 0.6,
+                supplier: true, desc: 'מחדשת תחמושת ודלק לכוחות סביבה', weapons: [] },
     uav_recon:{ side: 'il', n: 'מל״ט סיור', cls: 'air', armor: 'air', hp: 70, speed: 3.2, vision: 11, cost: 400, time: 10, q: 'air', move: 'air', size: .55,
                 loiter: 160, desc: 'חושף את ערפל הקרב ומפיל רחפנים',
                 weapons: [{ n: 'נגד רחפנים', range: 4.5, dmg: 12, cd: .9, fx: 'laser', vs: { drone: 1 } }] },
@@ -177,6 +179,7 @@
     drone:    { side: 'hz', n: 'רחפן נפץ', cls: 'air', armor: 'drone', hp: 22, speed: 2.6, vision: 6, size: .35, move: 'air', time: 6,
                 kamikaze: { dmg: 95, splash: 1.0, vs: { inf: .6, light: 1, armor: .9, bld: .6 } } },
     // Hezbollah structures (the local HQ of each site)
+    hz_launcher:{side: 'hz', n: 'משגר רקטות', cls: 'bld', armor: 'light', hp: 400, speed: 0, vision: 3, size: .7, building: true, launcher: true, weapons: [] },
     hz_outpost:{side: 'hz', n: 'מוצב מבוצר', cls: 'bld', armor: 'bld', hp: 1800, speed: 0, vision: 7, size: 1.4, building: true,
                 weapons: [{ n: 'מקלע מבוצר', range: 5, dmg: 5, cd: .5, fx: 'bullet', vs: { inf: 1, light: .8, armor: .03, air: .25, drone: .3 } }] },
     hz_village:{side: 'hz', n: 'מפקדת כפר', cls: 'bld', armor: 'bld', hp: 1300, speed: 0, vision: 6, size: 1.2, building: true, weapons: [] },
@@ -188,7 +191,7 @@
   // what the player can buy, by production line. Vehicles and helis/jets are built one at a time.
   var BUILD = {
     inf: ['golani', 'nahal', 'givati', 'engineer'],
-    veh: ['merkava', 'namer'],
+    veh: ['merkava', 'namer', 'truck'],
     air: ['uav_recon', 'uav_attack', 'heli', 'jet']
   };
   var QUEUE_MAX = { inf: 5, veh: 1, air: 1 };
@@ -226,9 +229,30 @@
     normal: { n: 'רגיל', money: 3500, hp: 1.2, prod: .9, dmg: 1.25, base: 110, counter: 200, drone: 1.0, startMul: 1, cap: 90, wave: 6, grace: 120, help: 2 },
     hard:   { n: 'קשה',  money: 3000, hp: 1.3, prod: .8, dmg: 1.35, base: 100, counter: 170, drone: .8, startMul: 1.25, cap: 115, wave: 7, grace: 110, help: 2 }
   };
+
+  // ---------- v2 realism: hidden tunnels / weapons stores, rocket launch areas, supply ----------
+  // Tunnel shafts (site key + offset angle). Each has an exit toward Israeli lines where Hezbollah squads pop out.
+  var TUNNELS = [ ['labuna', 1.2], ['ramiye', 4.0], ['aita', 2.2], ['bint', 5.2], ['naqoura', 0.4], ['saluki', 3.1], ['khiam', 1.9] ];
+  // Weapons stores (site key + offset angle): speed up the site's production and ATGM reloads while they stand.
+  var CACHES = [ ['shamaa', 3.6], ['qana', 0.9], ['tebnine', 2.6], ['hujeir', 5.0], ['beaufort', 2.0], ['tyre', 4.4], ['nabatieh', 1.4], ['jezzinef', 3.3], ['sidon', 5.6] ];
+  // Rocket launch areas south of the Litani: hidden launchers in orchards and fields (lat, lon, name).
+  var LAUNCH_AREAS = [
+    [33.222, 35.242, 'מטעי ראשידיה'], [33.170, 35.262, 'שדות מג׳דל זון'], [33.180, 35.355, 'מטעי קנא'],
+    [33.235, 35.392, 'שדות תבנין'], [33.272, 35.470, 'בוסתני סלוקי'], [33.300, 35.585, 'מטעי דיר מימאס']
+  ];
+  var HIDDEN = {
+    tunnel: { n: 'פיר מנהרה', reveal: 3, revealEng: 7, revealUav: 6, blow: 4, bounty: 250, pop: 210, exitDist: 11 },
+    cache:  { n: 'מחסן נשק',  reveal: 3, revealEng: 7, revealUav: 6, blow: 4, bounty: 200, prodMul: 1.5, atgmMul: 1.4 },
+    launcher: { n: 'משגר רקטות', reveal: 3, revealEng: 7, revealUav: 6, bounty: 300, salvo: 105,
+                // damage multiplier by attacker type: jets and attack UAVs are best, ground units get there slowly
+                vsBy: { jet: 1.6, uav_attack: 1.8, heli: 1.2, merkava: .6, namer: .6, post: .25, golani: .25, nahal: .25, givati: .25, engineer: .25 } }
+  };
+  // Supply: max ammo / fuel, drain per shot (per weapon index) and fuel per tile moved. Refill rates are % of max per second.
+  var SUPPLY = { refillAmmo: .09, refillFuel: .11, truckRadius: 4, zoneExtra: 2.5, low: .25, noFuelSpeed: .25 };
   var data = { MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
     ROADS: ROADS, FORESTS: FORESTS, IL_TOWNS: IL_TOWNS, SITES: SITES, HOME: HOME, UNITS: UNITS, BUILD: BUILD, QUEUE_MAX: QUEUE_MAX,
-    TERRAIN: TERRAIN, BONUS: BONUS, SITE_T: SITE_T, DIFF: DIFF, TD_CITY: { tyre: 'tyre', sidon: 'sidon', beirut: 'beirut' } };
+    TERRAIN: TERRAIN, BONUS: BONUS, SITE_T: SITE_T, DIFF: DIFF, TD_CITY: { tyre: 'tyre', sidon: 'sidon', beirut: 'beirut' },
+    TUNNELS: TUNNELS, CACHES: CACHES, LAUNCH_AREAS: LAUNCH_AREAS, HIDDEN: HIDDEN, SUPPLY: SUPPLY };
   root.LF = root.LF || {}; root.LF.data = data;
   if (typeof module !== 'undefined' && module.exports) module.exports = data;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,7 +1,7 @@
 /* LEBANON FRONT — phone UI + gestures. Simulation and rendering are independent. */
 (function(){'use strict';
 var D=LF.data,Sim=LF.sim,ren=LF.render.init(document.getElementById('world')),$=id=>document.getElementById(id);
-var KEY='lebanonFront.save.v1',s=Sim.make(20261027,'normal'),selected=new Set(),tab='inf',diff='normal',mode='pan',pointers=new Map(),gesture=null,box=null,last=performance.now(),acc=0,uiT=0,saveT=0,fx=[],noticeT=0,modal=true;
+var KEY='lebanonFront.save.v1',s=Sim.make(20261027,'normal'),selected=new Set(),tab='inf',diff='normal',mode='pan',pointers=new Map(),gesture=null,box=null,last=performance.now(),acc=0,uiT=0,saveT=0,fx=[],noticeT=0,modal=true,lastL=-1;
 var storage={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');noticeT=performance.now()+2800}
 function save(){if(!s||s.lost)return;storage.set(KEY,Sim.save(s))}
@@ -10,27 +10,31 @@ function takeWarBudget(){if(typeof SHARED==='undefined')return;var n=SHARED.take
 function updateIntro(){var saved=Sim.restore(storage.get(KEY));$('continueGame').classList.toggle('hidden',!saved||saved.lost||saved.won);$('sharedLine').textContent='תקציב מלחמה ממגן שמיים: ₪'+sharedBudget().toLocaleString('he-IL')+' · משחק גם ללא מימון חיצוני';document.querySelectorAll('.diff button').forEach(b=>b.classList.toggle('active',b.dataset.diff===diff))}
 function begin(continueIt){if(continueIt){s=Sim.restore(storage.get(KEY));if(!s)return;toast('המשחק נשמר — ממשיכים מהנקודה שבה עצרתם')}else{s=Sim.make((Date.now()&0xffffffff)>>>0,diff);storage.set(KEY,Sim.save(s))}
  s.paused=false;selected.clear();modal=false;$('intro').classList.add('hidden');$('end').classList.add('hidden');ren.camera(s.units.find(u=>u.id===s.hq).x+1,s.units.find(u=>u.id===s.hq).y-3,22);
- takeWarBudget();save();updateUI()}
-function finish(){modal=true;s.paused=true;save();$('endTitle').textContent=s.won?'ביירות נכבשה! 🎉':'בסיס הפיקוד נפל';$('endDetail').textContent='כבשת '+s.captures+' יעדים · חיסלת '+s.kills+' יחידות · תקציב נותר ₪'+Math.floor(s.money)+'. '+(s.won?'חזית לבנון הוכרעה. חזיתות סוריה, עיראק ואיראן בהמשך.':'אפשר לנסות מחדש ולשנות אסטרטגיה.');$('end').classList.remove('hidden');if(s.won&&typeof SHARED!=='undefined')SHARED.winFront('lebanon')}
+ takeWarBudget();lastL=-1;save();updateUI()}
+function finish(){lastL=-1;updateLaunchers();modal=true;s.paused=true;save();$('endTitle').textContent=s.won?'ביירות נכבשה! 🎉':'בסיס הפיקוד נפל';$('endDetail').textContent='כבשת '+s.captures+' יעדים · חיסלת '+s.kills+' יחידות · תקציב נותר ₪'+Math.floor(s.money)+'. '+(s.won?'חזית לבנון הוכרעה. חזיתות סוריה, עיראק ואיראן בהמשך.':'אפשר לנסות מחדש ולשנות אסטרטגיה.');$('end').classList.remove('hidden');if(s.won&&typeof SHARED!=='undefined')SHARED.winFront('lebanon')}
 function selectedUnits(){return [...selected].map(id=>Sim.get(s,id)).filter(u=>u&&u.side==='il'&&!u.carriedBy)}
 function updateTicker(){var t=$('ticker');if(!t)return;t.innerHTML=s.messages.slice(0,2).map((m,i)=>'<div'+(i?' class="old"':'')+'>'+m.replace(/</g,'&lt;')+'</div>').join('')}
-function updateUI(){updateTicker();selected=new Set(selectedUnits().map(u=>u.id));$('money').textContent=Math.floor(s.money).toLocaleString('he-IL');$('captured').textContent=s.captures;$('clock').textContent=String(Math.floor(s.time/60)).padStart(2,'0')+':'+String(Math.floor(s.time%60)).padStart(2,'0');$('speed').textContent='×'+s.speed;$('pause').textContent=s.paused?'▶':'Ⅱ';$('selectMode').classList.toggle('active',mode==='select');
+function updateLaunchers(){var n=s.won?0:Sim.launchersAlive(s),el=$('launchers');if(el){el.querySelector('b').textContent=n;el.classList.toggle('none',!n);el.title=n?'כל אזור שיגור פעיל מוסיף רקטות לגלים במגן שמיים':'כל המשגרים הושמדו'}
+ if(n!==lastL&&!modal){lastL=n;if(typeof SHARED!=='undefined'&&SHARED.setLaunchers)SHARED.setLaunchers(n,'lebanon')}}
+function supText(u){var l=Sim.supplyLevel(u);if(!l)return '';return (l.ammo!==null?' · תחמ׳ '+Math.round(l.ammo*100)+'%':'')+(l.fuel!==null?' · דלק '+Math.round(l.fuel*100)+'%':'')}
+function updateUI(){updateTicker();updateLaunchers();selected=new Set(selectedUnits().map(u=>u.id));$('money').textContent=Math.floor(s.money).toLocaleString('he-IL');$('captured').textContent=s.captures;$('clock').textContent=String(Math.floor(s.time/60)).padStart(2,'0')+':'+String(Math.floor(s.time%60)).padStart(2,'0');$('speed').textContent='×'+s.speed;$('pause').textContent=s.paused?'▶':'Ⅱ';$('selectMode').classList.toggle('active',mode==='select');
  var units=selectedUnits(),names=units.reduce((a,u)=>(a[D.UNITS[u.type].n]=(a[D.UNITS[u.type].n]||0)+1,a),{});
  $('selection').textContent=units.length?(units.length>2?units.length+' יחידות: ':'')+Object.entries(names).map(([k,n])=>k+(n>1?' ×'+n:'')).join(' · '):'בסיס פיקוד צפון';
- $('terrainInfo').textContent=units.length===1?(Math.ceil(units[0].hp)+'/'+units[0].maxHp+' חיים · '+D.TERRAIN[Sim.ground(units[0].x,units[0].y)].n+(units[0].cargo.length?' · '+units[0].cargo.length+' בפנים':'')):'טאפ ליחידה · גרירה להזזה';
+ $('terrainInfo').textContent=units.length===1?(Math.ceil(units[0].hp)+'/'+units[0].maxHp+' חיים · '+D.TERRAIN[Sim.ground(units[0].x,units[0].y)].n+(units[0].cargo.length?' · '+units[0].cargo.length+' בפנים':'')+supText(units[0])):'טאפ ליחידה · גרירה להזזה';
  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
  var list=D.BUILD[tab];$('units').innerHTML=list.map(t=>{var u=D.UNITS[t],q=s.queue[u.q],max=D.QUEUE_MAX[u.q],blocked=s.money<u.cost||q.length>=max;return '<button data-buy="'+t+'" '+(blocked?'disabled':'')+' title="'+u.desc+'"><span>'+u.n+(u.soldiers?' <small>×8</small>':'')+'</span><span class="cost">₪'+u.cost+'</span></button>'}).join('');
  $('queue').textContent=Object.values(s.queue).flat().map(q=>D.UNITS[q.type].n+' '+Math.ceil(q.remaining)+'ש׳').join(' · ')||'בחרו יחידה לבנייה';
  $('group').disabled=units.length<2;$('split').disabled=!units.some(u=>u.soldiers>=2)&&units.length<2;
- $('unload').disabled=!units.some(u=>u.cargo.length);$('load').disabled=!units.some(u=>u.soldiers>0);$('build').disabled=!units.some(u=>u.type==='engineer')||s.money<D.UNITS.post.cost;
+ $('unload').disabled=!units.some(u=>u.cargo.length);$('load').disabled=!units.some(u=>u.soldiers>0);$('build').disabled=!units.some(u=>u.type==='engineer')||s.money<D.UNITS.post.cost;$('blow').disabled=!units.some(u=>u.type==='engineer');
 }
 function flashFocus(t){$('focus').textContent=t;$('focus').classList.remove('hidden');setTimeout(()=>$('focus').classList.add('hidden'),3500)}
 function selectOne(u){selected.clear();if(u.group){for(var v of s.units)if(v.group===u.group&&v.side==='il'&&v.hp>0&&!v.carriedBy)selected.add(v.id)}else selected.add(u.id);flashFocus(D.UNITS[u.type].n+(u.soldiers?' · '+u.soldiers+' לוחמים':'')+(u.group?' · קבוצה '+u.group:''));updateUI()}
-function pickUnit(p,side){var best=null,d=Infinity;for(var u of Sim.alive(s,side)){if(u.type==='hq'||(u.side==='hz'&&Sim.inFog(s,u.x,u.y)))continue;var q=ren.screen(u.x,u.y),r=Math.hypot(q.x-p.x,q.y-p.y);if(r<(D.UNITS[u.type].building?18:15)&&r<d){best=u;d=r}}return best}
+function pickUnit(p,side){var best=null,d=Infinity;for(var u of Sim.alive(s,side)){if(u.type==='hq'||(u.side==='hz'&&(Sim.inFog(s,u.x,u.y)||(u.hidden&&!u.revealed))))continue;var q=ren.screen(u.x,u.y),r=Math.hypot(q.x-p.x,q.y-p.y);if(r<(D.UNITS[u.type].building?18:15)&&r<d){best=u;d=r}}return best}
 function touch(p){var mini=ren.minimapHit(p.x,p.y);if(mini){ren.camera(mini.x,mini.y);return}var own=pickUnit(p,'il'),enemy=pickUnit(p,'hz'),w=ren.world(p.x,p.y);
  if(mode==='select'&&own){if(selected.has(own.id))selected.delete(own.id);else selected.add(own.id);updateUI();return}
  if(own){selectOne(own);return}
- if(selected.size){var structure=s.sites.find(z=>Math.hypot(z.x-w.x,z.y-w.y)<2.8&&z.owner==='hz'&&!Sim.inFog(s,z.x,z.y));var target=enemy||(structure&&Sim.get(s,structure.building));
+ if(selected.size){var shaft=(s.hidden||[]).find(h=>!h.dead&&h.revealed&&Math.hypot(h.x-w.x,h.y-w.y)<1.6);if(shaft&&selectedUnits().some(u=>u.type==='engineer')){var hh=Sim.blowOrder(s,[...selected]);if(hh){toast('הנדסה בדרך לפוצץ את '+D.HIDDEN[hh.kind].n+' ליד '+hh.name);updateUI();return}}
+  var structure=s.sites.find(z=>Math.hypot(z.x-w.x,z.y-w.y)<2.8&&z.owner==='hz'&&!Sim.inFog(s,z.x,z.y));var target=enemy||(structure&&Sim.get(s,structure.building));
   var commandPoint=structure?{x:structure.x,y:structure.y}:target?{x:target.x,y:target.y}:w;
   var n=Sim.setOrder(s,[...selected],commandPoint,target?target.id:0);
   if(n)toast(n+' יחידות קיבלו פקודה '+(target?'לתקוף':'לנוע'));return}
@@ -63,16 +67,18 @@ $('load').onclick=()=>{var army=selectedUnits().filter(u=>u.soldiers);var transp
  var n=transport&&Sim.load(s,transport.id,army.map(u=>u.id));toast(n?n+' מחלקות עלו ל'+D.UNITS[transport.type].n:'קרבו את החי״ר לנמר/מסוק פנוי');updateUI()};
 $('unload').onclick=()=>{var n=selectedUnits().reduce((x,u)=>x+Sim.unload(s,u.id),0);toast(n?n+' מחלקות ירדו':'בחרו נמר או מסוק עם כוחות');updateUI()};
 $('build').onclick=()=>{var e=selectedUnits().find(u=>u.type==='engineer');var id=e&&Sim.buildPost(s,e.id);toast(id?'העמדה נבנית ליד ההנדסה':'בחרו מחלקת הנדסה עם תקציב פנוי');updateUI()};
+$('blow').onclick=()=>{var h=Sim.blowOrder(s,[...selected]);toast(h?'הנדסה בדרך לפוצץ '+D.HIDDEN[h.kind].n+' ליד '+h.name+' · עומדים עליו כמה שניות':'אין מנהרה או מחסן חשופים בקרבת מקום · קרבו הנדסה או מל״ט סיור כדי לחשוף');updateUI()};
 $('stop').onclick=()=>{for(var u of selectedUnits()){u.goal=null;u.path=null;u.target=0;u.hold=3;u.stand=1}toast('הכוח מחזיק את השטח ולא רודף')};
 window.addEventListener('resize',()=>ren.resize());document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else if(!modal)takeWarBudget()});
 function frame(now){var dt=Math.min(.10,(now-last)/1000);last=now;if(!modal&&!s.paused){acc+=dt;var steps=0;while(acc>=1/30&&steps<4){Sim.step(s,1/30);acc-=1/30;steps++;
- for(var ev of s.events){if(['shot','hit','explosion','trophy','repair'].includes(ev.kind))fx.push(ev);
+ for(var ev of s.events){if(['shot','hit','explosion','trophy','repair','salvo','lzone','reveal','blown','tunnelpop'].includes(ev.kind))fx.push(ev);
+ if(['salvo','reveal','blown','tunnelpop'].includes(ev.kind)&&ev.text)toast(ev.text);if(ev.kind==='blown')updateLaunchers();
  else if(ev.kind==='city'){if(typeof SHARED!=='undefined'&&D.TD_CITY[ev.key])SHARED.capture(ev.key);save();toast(ev.name+' נכבשה!'+(D.TD_CITY[ev.key]?' נוספה גם למגן שמיים':''))}
  else if(ev.kind==='win'||ev.kind==='lose'){finish()}}
- }}fx=fx.filter(e=>s.time-e.time<1.25).slice(-160);uiT+=dt;saveT+=dt;if(uiT>.25){uiT=0;updateUI()}if(saveT>25){saveT=0;save()}
+ }}fx=fx.filter(e=>s.time-e.time<(e.kind==='lzone'?9:e.kind==='salvo'?4:e.kind==='reveal'||e.kind==='tunnelpop'||e.kind==='blown'?2:1.25)).slice(-200);uiT+=dt;saveT+=dt;if(uiT>.25){uiT=0;updateUI()}if(saveT>25){saveT=0;save()}
  if(noticeT&&now>noticeT){$('toast').classList.remove('show');noticeT=0}
  var snapshot=Object.assign({},s,{events:fx});ren.draw(snapshot,selected,box,1);requestAnimationFrame(frame)}
 updateIntro();updateUI();requestAnimationFrame(frame);
 // Test hook. All gameplay uses the same simulation and UI pipeline.
-window.LEBANON={get state(){return s},sim:Sim,data:D,renderer:ren,select:id=>{selected=new Set([id]);updateUI()},start:begin,save,restore:()=>Sim.restore(storage.get(KEY)),command:(ids,x,y,target)=>Sim.setOrder(s,ids,{x,y},target||0)};
+window.LEBANON={get state(){return s},sim:Sim,data:D,renderer:ren,select:id=>{selected=new Set([id]);updateUI()},selectIds:ids=>{selected=new Set(ids);updateUI()},start:begin,save,restore:()=>Sim.restore(storage.get(KEY)),command:(ids,x,y,target)=>Sim.setOrder(s,ids,{x,y},target||0)};
 })();

@@ -21,7 +21,7 @@
     return { getItem: function (k) { return Object.prototype.hasOwnProperty.call(d, k) ? d[k] : null; },
              setItem: function (k, v) { d[k] = String(v); }, removeItem: function (k) { delete d[k]; }, _d: d };
   }
-  function blank() { return { v: 1, budget: 0, earnedTotal: 0, captured: [], fronts: {}, log: [] }; }
+  function blank() { return { v: 1, budget: 0, earnedTotal: 0, captured: [], fronts: {}, launchers: {}, log: [] }; }
   function load() {
     try { var o = JSON.parse(store().getItem(KEY) || 'null'); if (o && o.v === 1) { o.captured = o.captured || []; o.fronts = o.fronts || {}; o.log = o.log || []; return o; } } catch (e) {}
     return blank();
@@ -48,6 +48,18 @@
       if (o.captured.indexOf(key) < 0) { o.captured.push(key); note(o, 'נכבשה ' + CITY_INFO[key].n); save(o); }
       return true;
     },
+    // RTS → TD link: how many rocket launch areas are still alive on a front. Each live area makes TD waves harder.
+    setLaunchers: function (n, front) {
+      front = front || 'lebanon'; n = Math.max(0, Math.floor(n || 0)); var o = load(); o.launchers = o.launchers || {};
+      var prev = o.launchers[front] ? o.launchers[front].n : -1; if (prev === n) return n;
+      o.launchers[front] = { n: n, at: Date.now() }; if (prev >= 0) note(o, 'משגרים פעילים ב' + (front === 'lebanon' ? 'לבנון' : front) + ': ' + n); save(o); return n;
+    },
+    launchers: function (front) {
+      var l = load().launchers || {}; if (front) return l[front] ? l[front].n : 0;
+      var t = 0; for (var k in l) if (l[k] && l[k].n > 0) t += l[k].n; return t;
+    },
+    // extra short-range rockets per tower-defense wave: +1 per live area, +2 from wave 4, +3 from wave 7 (moderate)
+    launcherRockets: function (wave) { var n = api.launchers(); return n * (1 + Math.floor(Math.max(0, (wave || 1) - 1) / 3)); },
     winFront: function (front) { var o = load(); o.fronts[front] = { won: true, at: Date.now() }; save(o); },
     frontWon: function (front) { var f = load().fronts[front]; return !!(f && f.won); },
     reset: function () { save(blank()); }

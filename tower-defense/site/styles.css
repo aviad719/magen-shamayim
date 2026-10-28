@@ -89,3 +89,5 @@ font-size:16px;font-weight:800;padding:10px 22px;border-radius:24px;border:1px s
 .best{margin:4px 0 6px;text-align:center;color:#ffd96b;font-size:12.5px}
 .lk{font-weight:900}.lk.d{color:#ffa53c}.lk.c{color:#ffe45c}.lk.b{color:#ff3b3b}
 @media (orientation:portrait){#banner{left:0;right:0;top:22%}}
+
+#lbLine{position:absolute;z-index:6;left:14px;bottom:calc(62px + env(safe-area-inset-bottom));max-width:min(360px,60vw);font-size:11px;font-weight:700;color:#ffd7b0;background:#3a140bd9;border:1px solid #ff8a4a;border-radius:8px;padding:4px 9px;pointer-events:none}
