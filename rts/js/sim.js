@@ -125,9 +125,11 @@ function move(s,u,dt){var sp=U[u.type],goal=u.goal;if(!goal||!sp.speed)return;
   var cxm=Math.floor(u.x)+.5,cym=Math.floor(u.y)+.5,cd=Math.hypot(cxm-u.x,cym-u.y);if(cd>.05){var k=Math.min(1,step/cd);u.x+=(cxm-u.x)*k;u.y+=(cym-u.y)*k}return}
  u.x=clamp(nx,0,M.cols-.01);u.y=clamp(ny,0,M.rows-.01);u.facing=Math.atan2(vy,vx);u.hold=0;u.stuck=0;
  if(dist(u,goal)<.4){u.goal=null;u.path=null;u.hold=0}}
+function inHealZone(s,u){var hq=get(s,s.hq);if(hq&&dist(u,hq)<6)return true;for(var p of alive(s,'il'))if(p.type==='post'&&p.built!==false&&dist(u,p)<3.5)return true;for(var z of s.sites)if(z.owner==='il'&&dist(u,z)<((S[z.t]&&S[z.t].radius)||3)+1.2)return true;return false}
 function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=Math.max(0,u.flash-dt);u.trophyCd=Math.max(0,u.trophyCd-dt);
  if(u.carriedBy)return;if(sp.loiter&&!u.flight){u.loiter-=dt;if(u.loiter<=0){var base=get(s,s.hq);if(base){u.goal={x:base.x+2,y:base.y-1};u.target=0;u.flight='return';emit(s,sp.n+' חוזר לבסיס לתדלוק','rtb')}else u.hp=0}}
  if(!u.built){u.buildT-=dt;if(u.buildT<=0){u.built=true;emit(s,'עמדת רואה־יורה מוכנה','post')}return}
+ if(u.side==='il'&&u.soldiers>0&&u.hp<u.maxHp&&inHealZone(s,u)){u.hp=Math.min(u.maxHp,u.hp+u.maxHp*.035*dt);u.healing=1;if(Math.floor(s.time*2)%6===0&&Math.floor((s.time-dt)*2)%6!==0)s.events.push({kind:'repair',x:u.x,y:u.y,time:s.time})}else u.healing=0;
  if(sp.engineer){var damaged=alive(s,'il').filter(v=>v.id!==u.id&&v.hp<v.maxHp&&['armor','air'].includes(U[v.type].armor)&&dist(u,v)<4.7);
   if(damaged.length){var v=damaged[0];v.hp=Math.min(v.maxHp,v.hp+7*dt*(u.soldiers/8));if(Math.floor(s.time)%5===0)s.events.push({kind:'repair',x:v.x,y:v.y,time:s.time})}}
  if(u.flight==='return'){u.goal=u.goal||(get(s,s.hq)?{x:get(s,s.hq).x+2,y:get(s,s.hq).y-1}:null);move(s,u,dt);if(!u.goal||dist(u,u.goal)<.5){u.goal=null;u.flight='rearm';u.cool=U[u.type].rearm||15}return}

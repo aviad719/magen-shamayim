@@ -70,3 +70,8 @@ test('bot on normal keeps the game moving (captures in the first 20 minutes, no 
 test('RTS page wiring: phone viewport, Hebrew RTL, scripts present',()=>{const h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
  assert.match(h,/<html lang="he" dir="rtl">/);assert.match(h,/name="viewport"/);for(const f of ['../shared.js','js/data.js','js/sim.js','js/render.js','js/main.js'])assert.ok(h.includes('src="'+f+'"'),f);
  assert.ok(!/TODO|lorem/i.test(h))});
+
+test('infantry heals inside an Israeli base/city/post, not in the field',()=>{const s=fresh();s.paused=false;const hq=Sim.get(s,s.hq);
+ const near=at(s,'golani','il',hq.x+1,hq.y+1);near.hp=near.maxHp*.4;const far=at(s,'nahal','il',hq.x+40,hq.y-60);far.hp=far.maxHp*.4;
+ s.units=s.units.filter(u=>u.side==='il');const fb=far.hp,nb=near.hp;for(let i=0;i<10*30;i++)Sim.step(s,1/30);
+ assert.ok(near.hp>nb+near.maxHp*.2,'healed near HQ');assert.ok(far.hp<=fb+1e-9,'no healing in the field')});

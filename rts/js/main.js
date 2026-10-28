@@ -28,7 +28,7 @@ function flashFocus(t){$('focus').textContent=t;$('focus').classList.remove('hid
 function selectOne(u){selected.clear();if(u.group){for(var v of s.units)if(v.group===u.group&&v.side==='il'&&v.hp>0&&!v.carriedBy)selected.add(v.id)}else selected.add(u.id);flashFocus(D.UNITS[u.type].n+(u.soldiers?' · '+u.soldiers+' לוחמים':'')+(u.group?' · קבוצה '+u.group:''));updateUI()}
 function pickUnit(p,side){var best=null,d=Infinity;for(var u of Sim.alive(s,side)){if(u.type==='hq'||(u.side==='hz'&&Sim.inFog(s,u.x,u.y)))continue;var q=ren.screen(u.x,u.y),r=Math.hypot(q.x-p.x,q.y-p.y);if(r<(D.UNITS[u.type].building?18:15)&&r<d){best=u;d=r}}return best}
 function touch(p){var mini=ren.minimapHit(p.x,p.y);if(mini){ren.camera(mini.x,mini.y);return}var own=pickUnit(p,'il'),enemy=pickUnit(p,'hz'),w=ren.world(p.x,p.y);
- if(mode==='select'){if(own){if(selected.has(own.id))selected.delete(own.id);else selected.add(own.id);updateUI()}return}
+ if(mode==='select'&&own){if(selected.has(own.id))selected.delete(own.id);else selected.add(own.id);updateUI();return}
  if(own){selectOne(own);return}
  if(selected.size){var structure=s.sites.find(z=>Math.hypot(z.x-w.x,z.y-w.y)<2.8&&z.owner==='hz'&&!Sim.inFog(s,z.x,z.y));var target=enemy||(structure&&Sim.get(s,structure.building));
   var commandPoint=structure?{x:structure.x,y:structure.y}:target?{x:target.x,y:target.y}:w;
@@ -42,13 +42,13 @@ var canvas=$('world');canvas.addEventListener('pointerdown',e=>{e.preventDefault
 canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(!gesture)return;
  if(pointers.size===2){var a=[...pointers.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(gesture.pinch){var mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2,before=ren.world(mx,my);ren.camera(null,null,gesture.z*d/gesture.d);var after=ren.world(mx,my);ren.camera(ren.view.x+before.x-after.x,ren.view.y+before.y-after.y)}return}
  if(gesture.pinch)return;var dx=e.clientX-gesture.lastX,dy=e.clientY-gesture.lastY;
- if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>6)gesture.dragged=true;
+ if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>(gesture.select?8:16))gesture.dragged=true;
  if(gesture.dragged){if(gesture.select){box={x:Math.min(gesture.x,e.clientX),y:Math.min(gesture.y,e.clientY),w:Math.abs(e.clientX-gesture.x),h:Math.abs(e.clientY-gesture.y)}}
  else ren.camera(ren.view.x-dx/ren.view.z,ren.view.y-dy/ren.view.z)}
  gesture.lastX=e.clientX;gesture.lastY=e.clientY});
 function finishPointer(e){if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.delete(e.pointerId);
  if(!gesture)return;if(pointers.size){gesture=null;box=null;return}
- if(gesture.select&&gesture.dragged&&box){selected.clear();for(var u of Sim.alive(s,'il')){if(u.type==='hq'||D.UNITS[u.type].building)continue;var p=ren.screen(u.x,u.y);if(p.x>=box.x&&p.x<=box.x+box.w&&p.y>=box.y&&p.y<=box.y+box.h)selected.add(u.id)}toast(selected.size+' יחידות נבחרו');updateUI()}
+ if(gesture.select&&gesture.dragged&&box){selected.clear();for(var u of Sim.alive(s,'il')){if(u.type==='hq'||D.UNITS[u.type].building)continue;var p=ren.screen(u.x,u.y);if(p.x>=box.x&&p.x<=box.x+box.w&&p.y>=box.y&&p.y<=box.y+box.h)selected.add(u.id)}if(selected.size)mode='pan';toast(selected.size+' יחידות נבחרו · טאפ על יעד');updateUI()}
  else if(!gesture.dragged&&!gesture.pinch)touch({x:e.clientX,y:e.clientY});box=null;gesture=null}
 canvas.addEventListener('pointerup',finishPointer);canvas.addEventListener('pointercancel',finishPointer);canvas.addEventListener('wheel',e=>{e.preventDefault();ren.camera(null,null,ren.view.z*(e.deltaY>0?.86:1.14))},{passive:false});
 document.querySelectorAll('.diff button').forEach(b=>b.onclick=()=>{diff=b.dataset.diff;updateIntro()});
