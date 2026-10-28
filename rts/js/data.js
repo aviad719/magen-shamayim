@@ -243,6 +243,7 @@
   var HIDDEN = {
     tunnel: { n: 'פיר מנהרה', reveal: 3, revealEng: 7, revealUav: 6, blow: 4, bounty: 250, pop: 210, exitDist: 11 },
     cache:  { n: 'מחסן נשק',  reveal: 3, revealEng: 7, revealUav: 6, blow: 4, bounty: 200, prodMul: 1.5, atgmMul: 1.4 },
+    exit:   { n: 'יציאת מנהרה', blow: 3, bounty: 120 },
     launcher: { n: 'משגר רקטות', reveal: 3, revealEng: 7, revealUav: 6, bounty: 300, salvo: 105,
                 // damage multiplier by attacker type: jets and attack UAVs are best, ground units get there slowly
                 vsBy: { jet: 1.6, uav_attack: 1.8, heli: 1.2, merkava: .6, namer: .6, post: .25, golani: .25, nahal: .25, givati: .25, engineer: .25 } }

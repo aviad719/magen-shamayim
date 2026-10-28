@@ -28,11 +28,11 @@ test('tunnel reveal: hidden from afar, revealed by a unit up close, by engineers
 test('engineers destroy a revealed tunnel by standing on it for a few seconds (money + explosion), and only once revealed',()=>{
  const s=fresh();s.time=0;const h=s.hidden.find(q=>q.kind==='tunnel');const e=at(s,'engineer','il',h.x,h.y);
  h.revealed=false;const saved=Sim.inFog;run(s,.4);// first reveal tick has not run yet: standing still does nothing
- h.revealed=true;h.blow=0;const m0=s.money;run(s,2);assert.ok(!h.dead&&h.blow>1,'blowing in progress');run(s,2.6);
+ h.revealed=true;h.blow=0;const m0=s.money;run(s,1);assert.ok(h.blow===0,'no automatic blowing without an order');assert.ok(Sim.blowOrder(s,[e.id]),'💥 with no pick blows the object the engineers stand on');run(s,2);assert.ok(!h.dead&&h.blow>1,'blowing in progress');run(s,2.6);
  assert.ok(h.dead,'tunnel destroyed after ~4 s');assert.ok(s.money>=m0+D.HIDDEN.tunnel.bounty,'bounty paid');
  assert.ok(s.messages.some(m=>m.includes('פוצץ')),'toast/message');
- // the "פוצץ" order sends engineers to the nearest revealed shaft/store
- const c=s.hidden.find(q=>q.kind==='cache'&&!q.dead);c.revealed=true;const e2=at(s,'engineer','il',c.x+6,c.y+2);const got=Sim.blowOrder(s,[e2.id]);
+ // the "פוצץ" order sends engineers to the object the player tapped
+ const c=s.hidden.find(q=>q.kind==='cache'&&!q.dead);c.revealed=true;const e2=at(s,'engineer','il',c.x+6,c.y+2);assert.strictEqual(Sim.blowOrder(s,[e2.id]),null,'far away and nothing picked: no automatic target');const got=Sim.blowOrder(s,[e2.id],c.id);
  assert.ok(got,'blow order found a target');run(s,25);assert.ok(c.dead,'store blown after walking there')});
 
 test('a live tunnel lets Hezbollah infantry pop out at its exit; a destroyed one does not',()=>{const s=fresh();s.time=D.DIFF.normal.grace+1;

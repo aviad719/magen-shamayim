@@ -41,7 +41,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
  function screen(x,y){return{x:(x-view.x)*view.z+(view.w-view.right)/2,y:(y-view.y)*view.z+view.h/2}}
  function world(x,y){return{x:(x-(view.w-view.right)/2)/view.z+view.x,y:(y-view.h/2)/view.z+view.y}}
  function camera(x,y,z){if(Number.isFinite(x))view.x=Math.max(8,Math.min(M.cols-5,x));if(Number.isFinite(y))view.y=Math.max(7,Math.min(M.rows-7,y));if(Number.isFinite(z))view.z=Math.max(view.min,Math.min(view.max,z))}
- function draw(s,selected,box,showFog){
+ function draw(s,selected,box,showFog,ui){ui=ui||{};
   var w=view.w,h=view.h,z=view.z;ctx.fillStyle='#0d1a25';ctx.fillRect(0,0,w,h);var a=world(0,0),b=world(w,h);
   ctx.imageSmoothingEnabled=z<24;ctx.drawImage(tile,a.x*24,a.y*24,(b.x-a.x)*24,(b.y-a.y)*24,0,0,w,h);
   // Soft ocean vignette, cartographic labels, cross-front lines.
@@ -75,7 +75,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
   }
 
   // v2: revealed tunnel shafts, weapons stores, rocket launchers, tunnel exits
-  for(var hd of (s.hidden||[])){if(hd.dead)continue;if(hd.kind==='tunnel'&&(hd.revealed||hd.exitSeen)){var pe=screen(hd.ex,hd.ey);if(pe.x>-20&&pe.x<w+20&&pe.y>-20&&pe.y<h+20){var ke=Math.max(.6,Math.min(1.4,z/22));ctx.fillStyle='rgba(20,10,5,.85)';ctx.beginPath();ctx.ellipse(pe.x,pe.y,7*ke,4.5*ke,0,0,7);ctx.fill();ctx.strokeStyle='#ff9a5a';ctx.lineWidth=1.2;ctx.setLineDash([2,2]);ctx.beginPath();ctx.arc(pe.x,pe.y,10*ke,0,7);ctx.stroke();ctx.setLineDash([]);if(z>=14)label(hd.ex,hd.ey+14/z,'יציאת מנהרה','#ffcaa0',9,'rgba(30,10,5,.6)')}}
+  for(var hd of (s.hidden||[])){if(hd.dead)continue;if(hd.kind==='tunnel'&&!hd.exitDead&&(hd.revealed||hd.exitSeen)){var pe=screen(hd.ex,hd.ey);if(pe.x>-20&&pe.x<w+20&&pe.y>-20&&pe.y<h+20){var ke=Math.max(.6,Math.min(1.4,z/22));ctx.fillStyle='rgba(20,10,5,.85)';ctx.beginPath();ctx.ellipse(pe.x,pe.y,7*ke,4.5*ke,0,0,7);ctx.fill();ctx.strokeStyle='#ff9a5a';ctx.lineWidth=1.2;ctx.setLineDash([2,2]);ctx.beginPath();ctx.arc(pe.x,pe.y,10*ke,0,7);ctx.stroke();ctx.setLineDash([]);if(hd.exitBlow>0){ctx.strokeStyle='#ffe066';ctx.lineWidth=3;ctx.beginPath();ctx.arc(pe.x,pe.y,13*ke,-Math.PI/2,-Math.PI/2+Math.min(1,hd.exitBlow/D.HIDDEN.exit.blow)*Math.PI*2);ctx.stroke()}if(z>=14)label(hd.ex,hd.ey+14/z,'יציאת מנהרה','#ffcaa0',9,'rgba(30,10,5,.6)')}}
    if(!hd.revealed)continue;var ph=screen(hd.x,hd.y);if(ph.x<-30||ph.x>w+30||ph.y<-30||ph.y>h+30)continue;var kh=Math.max(.6,Math.min(1.5,z/22));ctx.save();ctx.translate(ph.x,ph.y);ctx.scale(kh,kh);
    ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(2,2,11,0,7);ctx.fill();
    if(hd.kind==='tunnel'){ctx.fillStyle='#6b4a2a';ctx.fillRect(-10,-10,20,20);ctx.fillStyle='#120a05';ctx.beginPath();ctx.arc(0,0,7,0,7);ctx.fill();ctx.strokeStyle='#d8b27a';ctx.lineWidth=1.6;ctx.strokeRect(-10,-10,20,20);ctx.strokeStyle='#a57c45';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(-3,-6);ctx.lineTo(-3,6);ctx.moveTo(3,-6);ctx.lineTo(3,6);for(var rg=-4;rg<=4;rg+=3){ctx.moveTo(-3,rg);ctx.lineTo(3,rg)}ctx.stroke()}
@@ -149,6 +149,16 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
   if(showFog){var fd=fog.getContext('2d'),img=fogImg,vis=S.inFog;for(var ty=0;ty<M.rows;ty++)for(var tx=0;tx<M.cols;tx++){var o=(ty*M.cols+tx)*4;img.data[o+3]=vis(s,tx+.5,ty+.5)?205:0}
     fd.putImageData(img,0,0);ctx.save();ctx.imageSmoothingEnabled=true;var A=screen(0,0),B=screen(M.cols,M.rows);ctx.drawImage(fog,0,0,M.cols,M.rows,A.x,A.y,B.x-A.x,B.y-A.y);ctx.restore()}
   if(box){ctx.strokeStyle='#b3f2e3';ctx.fillStyle='rgba(100,230,210,.16)';ctx.lineWidth=1.3;ctx.fillRect(box.x,box.y,box.w,box.h);ctx.strokeRect(box.x,box.y,box.w,box.h)}
+
+  // v3 overlays: patrol routes (selected units + the route being drawn) and engineer demolition targets
+  function routeLine(pts,col,loop,dim){if(!pts||!pts.length)return;ctx.save();ctx.globalAlpha=dim?.55:1;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.setLineDash([7,5]);ctx.beginPath();pts.forEach((p,i)=>{var q=screen(p.x,p.y);if(i)ctx.lineTo(q.x,q.y);else ctx.moveTo(q.x,q.y)});if(loop&&pts.length>2){var q0=screen(pts[0].x,pts[0].y);ctx.lineTo(q0.x,q0.y)}ctx.stroke();ctx.setLineDash([]);
+   pts.forEach((p,i)=>{var q=screen(p.x,p.y);ctx.fillStyle='rgba(6,20,26,.9)';ctx.beginPath();ctx.arc(q.x,q.y,9,0,7);ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=col;ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),q.x,q.y+.5)});ctx.restore()}
+  var drawnRoutes=new Set();for(var ru2 of s.units){if(ru2.hp<=0||!ru2.route||!selected||!selected.has(ru2.id))continue;var rk=JSON.stringify(ru2.route);if(drawnRoutes.has(rk))continue;drawnRoutes.add(rk);routeLine(ru2.route,'#7fe3ff',true)}
+  if(ui.draft)routeLine(ui.draft,'#ffe066',true);
+  for(var eg of s.units){if(eg.hp<=0||eg.carriedBy||!eg.blowT||eg.side!=='il')continue;var tg=S.findHidden(s,eg.blowT);if(!tg)continue;var pa=screen(eg.x,eg.y),pb=screen(tg.x,tg.y);
+   ctx.save();ctx.strokeStyle='rgba(255,170,90,.85)';ctx.lineWidth=1.6;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();ctx.setLineDash([]);
+   var pulse=1+.15*Math.sin(s.time*6);ctx.strokeStyle='#ffd23f';ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(pb.x,pb.y,19*pulse,0,7);ctx.stroke();ctx.beginPath();for(var ang=0;ang<4;ang++){var c1=Math.cos(ang*Math.PI/2),s1=Math.sin(ang*Math.PI/2);ctx.moveTo(pb.x+c1*13,pb.y+s1*13);ctx.lineTo(pb.x+c1*25,pb.y+s1*25)}ctx.stroke();
+   ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffd23f';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText('🎯 יעד הנדסה',pb.x,pb.y-30);ctx.restore()}
   // The minimap is intentionally at the LEFT, outside the right-hand command dock.
   drawMinimap(s);
  }
@@ -178,7 +188,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
   if(sp.cls==='air'){ctx.fillStyle=u.type==='uav_attack'?'#c9c39a':'#d9e6e0';ctx.fillRect(-sz*.7,-sz*.08,sz*1.4,sz*.16);ctx.beginPath();ctx.moveTo(sz*.15,-sz*.95);ctx.lineTo(sz*.32,-sz*.95);ctx.lineTo(sz*.32,sz*.95);ctx.lineTo(sz*.15,sz*.95);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillRect(-sz*.75,-sz*.35,sz*.12,sz*.7);return}
   if(u.type==='post'){ctx.rotate(-(u.facing||0));ctx.fillStyle='#6f7b62';ctx.fillRect(-sz*.7,-sz*.7,sz*1.4,sz*1.4);ctx.strokeRect(-sz*.7,-sz*.7,sz*1.4,sz*1.4);ctx.fillStyle='#c9d7b0';ctx.beginPath();ctx.arc(0,0,sz*.32,0,7);ctx.fill();if(!u.built){ctx.fillStyle='rgba(255,220,90,.8)';ctx.fillRect(-sz*.7,sz*.75,sz*1.4*(1-u.buildT/D.UNITS.post.time),3)}return}
   ctx.fillStyle=body;ctx.beginPath();ctx.arc(0,0,sz,0,7);ctx.fill();ctx.stroke()}
- function drawMinimap(s){var w=94,h=126,ox=8,oy=view.h-h-8;
+ function drawMinimap(s){var w=94,h=126,ox=8+(view.il||0),oy=view.h-h-8-(view.ib||0);
    ctx.fillStyle='rgba(8,20,25,.95)';ctx.fillRect(ox-2,oy-2,w+4,h+4);
    ctx.drawImage(tile,0,0,tile.width,tile.height,ox,oy,w,h);
    ctx.strokeStyle='#5cc8cc';ctx.lineWidth=1;ctx.strokeRect(ox,oy,w,h);
@@ -189,7 +199,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
    var r=world(0,0),b=world(view.w-view.right,view.h);ctx.strokeStyle='#f6efbf';ctx.strokeRect(ox+r.x/M.cols*w,oy+r.y/M.rows*h,(b.x-r.x)/M.cols*w,(b.y-r.y)/M.rows*h);
    ctx.font='600 9px system-ui';ctx.fillStyle='#e0f3ed';ctx.textAlign='center';ctx.fillText('מיני־מפה',ox+w/2,oy-8)
  }
- function minimapHit(x,y){var ox=8,oy=view.h-126-8;if(x>=ox&&x<=ox+94&&y>=oy&&y<=oy+126)return{x:(x-ox)/94*M.cols,y:(y-oy)/126*M.rows};return null}
+ function minimapHit(x,y){var ox=8+(view.il||0),oy=view.h-126-8-(view.ib||0);if(x>=ox&&x<=ox+94&&y>=oy&&y<=oy+126)return{x:(x-ox)/94*M.cols,y:(y-oy)/126*M.rows};return null}
  resize();return{ctx,view,draw,resize,screen,world,camera,minimapHit,tile};}
  root.LF=root.LF||{};root.LF.render={init};
 })(window);

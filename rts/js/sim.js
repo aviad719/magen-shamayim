@@ -50,8 +50,9 @@ function queue(s,type){var sp=U[type];if(!sp||sp.side!=='il'||!sp.q||s.won||s.lo
 function buy(s,type){if(!queue(s,type))return false; // "buy" queues only, to respect one-at-a-time vehicles and aircraft.
  return true}
 function setOrder(s,ids,p,attackId){p=clampPos(p);var idsToCommand=new Set(ids);for(var id of ids){var u=get(s,id);if(u&&u.side==='il'&&u.group)for(var ally of s.units)if(ally.hp>0&&ally.group===u.group)idsToCommand.add(ally.id)}
- var n=0, i=0;for(var id of idsToCommand){var u=get(s,id);if(!u||u.side!=='il'||u.carriedBy||U[u.type].building||u.flight)continue;
- var offset={x:((i%4)-1.5)*1.3,y:Math.floor(i/4)*1.3},at=clampPos({x:p.x+offset.x,y:p.y+offset.y});u.goal=at;u.target=attackId||0;u.hold=0;u.path=null;u.stand=0;n++;i++}return n}
+ var list=[];for(var id of idsToCommand){var u=get(s,id);if(u&&u.side==='il'){u.route=null;u.blowT=null}if(!u||u.side!=='il'||u.carriedBy||U[u.type].building||u.flight)continue;list.push(u)}
+ var cols=Math.min(4,list.length)||1,rows=Math.ceil(list.length/cols);
+ list.forEach((u,i)=>{var offset={x:((i%cols)-(cols-1)/2)*1.3,y:(Math.floor(i/cols)-(rows-1)/2)*1.3},at=clampPos({x:p.x+offset.x,y:p.y+offset.y});u.goal=at;u.target=attackId||0;u.hold=0;u.path=null;u.stand=0});return list.length}
 function group(s,ids){var a=ids.map(id=>get(s,id)).filter(u=>u&&u.side==='il'&&!u.carriedBy);if(a.length<2)return 0;var g=++s.nextGroup;a.forEach(u=>u.group=g);emit(s,a.length+' יחידות אוגדו','group');return g}
 function split(s,ids){var a=ids.map(id=>get(s,id)).filter(u=>u&&u.side==='il'&&!u.carriedBy);
  if(a.length>1){var mid=Math.ceil(a.length/2),g1=++s.nextGroup,g2=++s.nextGroup;a.forEach((u,i)=>u.group=i<mid?g1:g2);emit(s,'פיצול: '+mid+' + '+(a.length-mid),'split');return [a.slice(0,mid).map(u=>u.id),a.slice(mid).map(u=>u.id)]}
@@ -127,25 +128,26 @@ function move(s,u,dt){var sp=U[u.type],goal=u.goal;if(!goal||!sp.speed)return;
  if(dist(u,goal)<.4){u.goal=null;u.path=null;u.hold=0}}
 function inHealZone(s,u){var hq=get(s,s.hq);if(hq&&dist(u,hq)<6)return true;for(var p of alive(s,'il'))if(p.type==='post'&&p.built!==false&&dist(u,p)<3.5)return true;for(var z of s.sites)if(z.owner==='il'&&dist(u,z)<((S[z.t]&&S[z.t].radius)||3)+1.2)return true;return false}
 function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=Math.max(0,u.flash-dt);u.trophyCd=Math.max(0,u.trophyCd-dt);
- if(u.carriedBy)return;if(sp.loiter&&!u.flight){u.loiter-=dt;if(u.loiter<=0){var base=get(s,s.hq);if(base){u.goal={x:base.x+2,y:base.y-1};u.target=0;u.flight='return';emit(s,sp.n+' חוזר לבסיס לתדלוק','rtb')}else u.hp=0}}
+ if(u.carriedBy)return;if(sp.loiter&&!u.flight){u.loiter-=dt;if(u.loiter<=0||(u.route&&u.side==='il'&&u.hp<u.maxHp*PATROL.lowHp)){var base=get(s,s.hq);if(base){u.goal={x:base.x+2,y:base.y-1};u.target=0;u.flight='return';emit(s,sp.n+' חוזר לבסיס לתדלוק','rtb')}else u.hp=0}}
  if(!u.built){u.buildT-=dt;if(u.buildT<=0){u.built=true;emit(s,'עמדת רואה־יורה מוכנה','post')}return}
  if(u.side==='il'&&u.soldiers>0&&u.hp<u.maxHp&&inHealZone(s,u)){u.hp=Math.min(u.maxHp,u.hp+u.maxHp*.035*dt);u.healing=1;if(Math.floor(s.time*2)%6===0&&Math.floor((s.time-dt)*2)%6!==0)s.events.push({kind:'repair',x:u.x,y:u.y,time:s.time})}else u.healing=0;
  if(u.side==='il'&&sp.supply)resupply(s,u,sp,dt);
- if(sp.engineer&&u.side==='il'&&!u.goal)blowTick(s,u,dt);
+ if(sp.engineer&&u.side==='il')blowTick(s,u,dt);
  if(sp.engineer){var damaged=alive(s,'il').filter(v=>v.id!==u.id&&v.hp<v.maxHp&&['armor','air'].includes(U[v.type].armor)&&dist(u,v)<4.7);
   if(damaged.length){var v=damaged[0];v.hp=Math.min(v.maxHp,v.hp+7*dt*(u.soldiers/8));if(Math.floor(s.time)%5===0)s.events.push({kind:'repair',x:v.x,y:v.y,time:s.time})}}
  if(u.flight==='return'){u.goal=u.goal||(get(s,s.hq)?{x:get(s,s.hq).x+2,y:get(s,s.hq).y-1}:null);move(s,u,dt);if(!u.goal||dist(u,u.goal)<.5){u.goal=null;u.flight='rearm';u.cool=U[u.type].rearm||15}return}
- if(u.flight==='rearm'){u.cool-=dt;if(sp.engineer===undefined&&u.hp<u.maxHp)u.hp=Math.min(u.maxHp,u.hp+u.maxHp*.04*dt);if(u.cool<=0){u.ammo=sp.ammo===undefined?null:sp.ammo;u.flight='';u.loiter=sp.loiter||0;emit(s,sp.n+' מוכן להמראה','unit')}return}
+ if(u.flight==='rearm'){u.cool-=dt;if(sp.engineer===undefined&&u.hp<u.maxHp)u.hp=Math.min(u.maxHp,u.hp+u.maxHp*.04*dt);if(u.cool<=0&&(!u.route||u.hp>=u.maxHp*PATROL.readyHp)){u.ammo=sp.ammo===undefined?null:sp.ammo;u.flight='';u.loiter=sp.loiter||0;if(u.route&&u.route.length){u.goal=u.route[u.routeI%u.route.length];u.target=0;emit(s,sp.n+' חזר לנתיב הסיור','patrol')}else emit(s,sp.n+' מוכן להמראה','unit')}return}
+ if(u.route&&u.side==='il')patrolTick(s,u,sp);
  if(u.goal)move(s,u,dt);else u.hold+=dt;
  if(u.side==='hz'&&!sp.building&&!u.goal){var threat=nearest(s,u,(sp.vision||6)*1.25,v=>v.side==='il');var home=u.site&&s.sites.find(q=>q.key===u.site),leash=home?(home.t==='outpost'?7:11):99;
   if(threat&&dist(u,threat)>(((sp.weapons||[])[0]||{}).range||3)&&(u.raid||!home||dist(threat,home)<leash+(home.t==='outpost'?0:4)))u.goal={x:threat.x,y:threat.y};
   else if(!threat){if(u.raid)u.raid=0;if(home&&home.owner==='hz'&&dist(u,home)>leash)u.goal={x:home.x+(rand(s)-.5)*4,y:home.y+(rand(s)-.5)*4}}}
- if(u.side==='il'&&!u.goal&&!u.target&&!u.stand&&!sp.building&&u.lastBy&&s.time-u.lastHitT<3){var att=get(s,u.lastBy);if(att&&dist(u,att)<10&&!(sp.weapons||[]).some(w=>canHit(u,att,w)))u.goal={x:att.x,y:att.y}}
+ if(u.side==='il'&&!u.route&&!u.goal&&!u.target&&!u.stand&&!sp.building&&u.lastBy&&s.time-u.lastHitT<3){var att=get(s,u.lastBy);if(att&&dist(u,att)<10&&!(sp.weapons||[]).some(w=>canHit(u,att,w)))u.goal={x:att.x,y:att.y}}
  if(u.side==='il'&&u.target){var focus=get(s,u.target);if(focus&&dist(u,focus)>(sp.weapons[0]||{range:0}).range)u.goal={x:focus.x,y:focus.y};else if(!focus)u.target=0}
  if(sp.kamikaze){var victim=nearest(s,u,(sp.vision||6)*2);if(victim&&dist(u,victim)<1.3){victim.lastHit='drone';inflict(s,victim,sp.kamikaze.dmg*(sp.kamikaze.vs[U[victim.type].armor]||0), 'blast');u.hp=0;s.events.push({kind:'explosion',x:u.x,y:u.y,time:s.time})}return}
  for(var wi=0;wi<sp.weapons.length;wi++){var weapon=sp.weapons[wi];u.weaponCd[wi]=Math.max(0,(u.weaponCd[wi]||0)-dt*(u.side==='hz'&&weapon.fx==='atgm'&&u.site&&CACHE_ON.has(u.site)?H.cache.atgmMul:1));if(u.weaponCd[wi]>0||u.ammo===0)continue;
   var use=u.sup!==null&&u.sup!==undefined?((sp.supply.use||[])[wi]||.3):0;if(use&&u.sup<use)continue;
-  var target=u.target?get(s,u.target):null;if(!target||target.side===u.side||!canHit(u,target,weapon))target=nearest(s,u,weapon.range,v=>canHit(u,v,weapon));
+  var target=u.target?get(s,u.target):null;if(!target||target.side===u.side||!canHit(u,target,weapon))target=nearest(s,u,weapon.range,v=>canHit(u,v,weapon)&&(!u.route||patrolSuits(u,v)));
   if(target){attack(s,u,target,weapon);u.weaponCd[wi]=weapon.cd;if(use){u.sup=Math.max(0,u.sup-use);if(u.sup<.3&&!u.outA){u.outA=1;emit(s,sp.n+': נגמרה התחמושת! חזרו לבסיס או הביאו משאית','supply')}}if((sp.jet||sp.ammo)&&u.ammo===0){var home=get(s,s.hq);if(home){u.goal={x:home.x,y:home.y};u.flight='return'}break}}}
 }
 
@@ -165,21 +167,49 @@ function launchersAlive(s){return launchers(s).length}
 function liveCaches(s){var c=new Set();for(var h of s.hidden||[])if(h.kind==='cache'&&!h.dead)c.add(h.site);return c}
 function revealRadius(v,H0){var sp=U[v.type];if(sp.engineer)return H0.revealEng;if(v.type==='uav_recon')return H0.revealUav;if(sp.move==='air')return H0.reveal*.8;return H0.reveal}
 function reveal(s){var il=alive(s,'il').filter(v=>!U[v.type].building||v.type==='post'),list=(s.hidden||[]).filter(h=>!h.dead&&!h.revealed).concat(launchers(s).filter(u=>!u.revealed));
- for(var h of list){var kind=h.kind||'launcher',H0=H[kind];for(var v of il)if(Math.hypot(v.x-h.x,v.y-h.y)<revealRadius(v,H0)){h.revealed=1;var text='נחשף '+H0.n+(h.area?' ב'+h.area:' ליד '+h.name)+(kind==='launcher'?' · תקפו אותו (מטוס/מל״ט תקיפה הכי טובים)':' · הנדסה תפוצץ אותו');emit(s,text,'reveal');s.events.push({kind:'reveal',hk:kind,x:h.x,y:h.y,text,time:s.time});break}}}
-function blowTick(s,u,dt){for(var h of s.hidden||[]){if(h.dead||!h.revealed||h.kind==='launcher'||Math.hypot(u.x-h.x,u.y-h.y)>1.5)continue;
-  h.blow+=dt*Math.max(.5,u.soldiers/8);u.blowing=h.id;if(h.blow>=H[h.kind].blow)blowUp(s,h);return}u.blowing=0}
-function blowUp(s,h){if(h.dead)return;h.dead=true;var b=H[h.kind].bounty;s.money+=b;var text='💥 '+H[h.kind].n+' ליד '+h.name+' פוצץ! +'+b+' ₪';emit(s,text,'blown');
+ for(var h of list){var kind=h.kind||'launcher',H0=H[kind];for(var v of il)if(Math.hypot(v.x-h.x,v.y-h.y)<revealRadius(v,H0)){h.revealed=1;var text='נחשף '+H0.n+(h.area?' ב'+h.area:' ליד '+h.name)+(kind==='launcher'?' · תקפו אותו (מטוס/מל״ט תקיפה הכי טובים)':' · הנדסה תפוצץ אותו');emit(s,text,'reveal');s.events.push({kind:'reveal',hk:kind,x:h.x,y:h.y,text,time:s.time});break}}
+ for(var e of (s.hidden||[])){if(e.kind!=='tunnel'||e.dead||e.exitDead||e.exitSeen||e.revealed)continue;for(var v of il)if(Math.hypot(v.x-e.ex,v.y-e.ey)<revealRadius(v,H.tunnel)){e.exitSeen=1;var tx='נחשפה יציאת מנהרה (הפיר ליד '+e.name+') · הנדסה יכולה לאטום אותה';emit(s,tx,'reveal');s.events.push({kind:'reveal',hk:'exit',x:e.ex,y:e.ey,text:tx,time:s.time});break}}}
+// Engineers blow ONLY the object the player picked (shaft, store or tunnel exit). Nothing automatic.
+function hiddenTargets(s){var out=[];for(var h of s.hidden||[]){if(h.dead)continue;if(h.revealed)out.push({key:h.id,kind:h.kind,x:h.x,y:h.y,name:h.name,h});
+  if(h.kind==='tunnel'&&!h.exitDead&&(h.revealed||h.exitSeen))out.push({key:h.id+'x',kind:'exit',x:h.ex,y:h.ey,name:h.name,h})}return out}
+function findHidden(s,key){if(!key)return null;return hiddenTargets(s).find(t=>t.key===key)||null}
+function hiddenAt(s,p,r){var best=null,bd=r||1.6;for(var t of hiddenTargets(s)){var d=Math.hypot(t.x-p.x,t.y-p.y);if(d<bd){bd=d;best=t}}return best}
+function blowTick(s,u,dt){if(!u.blowT){u.blowing=0;return}var t=findHidden(s,u.blowT);if(!t){u.blowT=null;u.blowing=0;return}
+ if(Math.hypot(u.x-t.x,u.y-t.y)>1.5){u.blowing=0;if(!u.goal)u.goal={x:t.x,y:t.y};return}
+ var rate=dt*Math.max(.5,u.soldiers/8);u.blowing=t.key;
+ if(t.kind==='exit'){t.h.exitBlow=(t.h.exitBlow||0)+rate;if(t.h.exitBlow>=H.exit.blow)sealExit(s,t.h)}
+ else{t.h.blow+=rate;if(t.h.blow>=H[t.kind].blow)blowUp(s,t.h)}
+ if(!findHidden(s,u.blowT)){u.blowT=null;u.blowing=0}}
+function blowUp(s,h){if(h.dead)return;h.dead=true;var sealed=h.kind==='tunnel'&&!h.exitDead;if(h.kind==='tunnel')h.exitDead=true;var b=H[h.kind].bounty;s.money+=b;var text='💥 '+H[h.kind].n+' ליד '+h.name+' פוצץ! +'+b+' ₪'+(sealed?' · היציאה נאטמה':'');emit(s,text,'blown');
  s.events.push({kind:'explosion',x:h.x,y:h.y,big:1,time:s.time},{kind:'explosion',x:h.x+.6,y:h.y-.4,big:1,time:s.time},{kind:'blown',x:h.x,y:h.y,text,time:s.time});
+ if(sealed)s.events.push({kind:'explosion',x:h.ex,y:h.ey,big:1,time:s.time});
  if(h.kind==='cache')for(var u of s.units)if(u.side==='hz'&&u.site===h.site&&u.hp>0&&!U[u.type].building&&dist(u,h)<4)inflict(s,u,40,'blast')}
-// Engineers: walk to the nearest revealed tunnel shaft or weapons store and blow it ("פוצץ").
-function blowOrder(s,ids){var eng=ids.map(id=>get(s,id)).filter(u=>u&&u.side==='il'&&U[u.type].engineer&&!u.carriedBy);if(!eng.length)return null;
- var c={x:eng[0].x,y:eng[0].y},h=(s.hidden||[]).filter(q=>!q.dead&&q.revealed&&q.kind!=='launcher'&&dist(q,c)<40).sort((a,b)=>dist(a,c)-dist(b,c))[0];if(!h)return null;
- eng.forEach((u,i)=>{u.goal={x:h.x+(i%2)*.4,y:h.y+((i/2)|0)*.4};u.target=0;u.hold=0;u.stand=0});return h}
+function sealExit(s,h){if(h.exitDead||h.dead)return;h.exitDead=true;var b=H.exit.bounty;s.money+=b;var text='💥 יציאת המנהרה (הפיר ליד '+h.name+') נאטמה! +'+b+' ₪ · אין יותר הגחות ממנה';emit(s,text,'blown');
+ s.events.push({kind:'explosion',x:h.ex,y:h.ey,big:1,time:s.time},{kind:'blown',x:h.ex,y:h.ey,text,time:s.time})}
+// "פוצץ" order: key = the object the player tapped. Without a key, only an object the engineers are already standing at (≤2.5 tiles).
+function blowOrder(s,ids,key){var eng=ids.map(id=>get(s,id)).filter(u=>u&&u.side==='il'&&U[u.type].engineer&&!u.carriedBy);if(!eng.length)return null;var t=null;
+ if(key)t=findHidden(s,key);else{var bd=2.5;for(var u of eng)for(var c of hiddenTargets(s)){var d=Math.hypot(u.x-c.x,u.y-c.y);if(d<bd){bd=d;t=c}}}
+ if(!t)return null;eng.forEach((u,i)=>{u.goal={x:t.x+(i%2)*.4,y:t.y+((i/2)|0)*.4};u.blowT=t.key;u.target=0;u.hold=0;u.stand=0;u.route=null});return t}
+// ===== v3: UAV / helicopter area-defence patrol route =====
+var PATROL={lowHp:.35,readyHp:.9,extra:1.5,leash:4};
+function canPatrol(u){var sp=U[u.type];return !!(sp&&u.side==='il'&&sp.move==='air'&&!sp.jet&&!sp.building&&(sp.weapons||[]).length)}
+function patrolSuits(u,v){var sp=U[u.type],tv=U[v.type];if(!tv||(tv.building&&!tv.launcher))return false;return (sp.weapons||[]).some(w=>(w.vs[tv.armor]||0)>=.5)}
+function routeDist(route,p){if(route.length===1)return dist(route[0],p);var m=1e9;for(var i=0;i<route.length;i++)m=Math.min(m,distanceToLine(p,route[i],route[(i+1)%route.length]));return m}
+function setRoute(s,ids,points){var pts=(points||[]).map(clampPos);if(!pts.length)return 0;var all=new Set(ids);for(var id of ids){var u=get(s,id);if(u&&u.side==='il'&&u.group)for(var a of s.units)if(a.hp>0&&a.group===u.group)all.add(a.id)}
+ var n=0;for(var id of all){var u=get(s,id);if(!u||u.carriedBy||!canPatrol(u))continue;u.route=pts.map(p=>({x:p.x,y:p.y}));u.routeI=n%pts.length;u.target=0;u.stand=0;u.pEng=0;u.blowT=null;if(!u.flight)u.goal=u.route[u.routeI];n++}
+ if(n)emit(s,n+' כלי טיס בנתיב הגנת שטח ('+pts.length+' נקודות)','patrol');return n}
+function hold(s,ids){var n=0;for(var id of ids){var u=get(s,id);if(!u||u.side!=='il')continue;if(u.route)n++;u.route=null;u.pEng=0;u.blowT=null;if(!u.flight){u.goal=null;u.path=null}u.target=0;u.hold=3;u.stand=1}return n}
+function patrolTick(s,u,sp){if(u.flight||u.ammo===0||!u.route.length)return;var range=Math.max(0,...(sp.weapons||[]).map(w=>w.range)),acq=range+PATROL.extra;
+ var t=u.target?get(s,u.target):null;if(t&&(!patrolSuits(u,t)||routeDist(u.route,t)>acq+PATROL.leash))t=null;
+ if(!t)t=nearest(s,u,acq,v=>patrolSuits(u,v));
+ if(t){if(!u.pEng&&u.side==='il')s.events.push({kind:'engage',x:t.x,y:t.y,time:s.time});u.target=t.id;u.pEng=1;u.goal=dist(u,t)>range*.85?{x:t.x,y:t.y}:null;return}
+ u.target=0;if(u.pEng){u.pEng=0;u.goal=u.route[u.routeI%u.route.length];return}
+ if(!u.goal){u.routeI=(u.routeI+1)%u.route.length;u.goal=u.route[u.routeI]}}
 function launcherDown(s,u){var b=H.launcher.bounty,n=launchersAlive(s);s.money+=b;var text='💥 משגר רקטות הושמד ב'+(u.area||'')+' · +'+b+' ₪ · '+(n?'נותרו '+n:'כל המשגרים הושמדו! מגן שמיים חוזר לרגיל');emit(s,text,'blown');s.events.push({kind:'blown',x:u.x,y:u.y,text,time:s.time})}
 function hiddenTick(s,dt){if(!s.hidden)return;var dif=DIFF[s.diff];s.revealT=(s.revealT||0)+dt;if(s.revealT>=.5){s.revealT=0;reveal(s)}
  if(s.time<=dif.grace)return;
  // tunnels: a squad pops out at the exit now and then, while Israeli forces are around
- for(var h of s.hidden){if(h.kind!=='tunnel'||h.dead)continue;h.popT-=dt;if(h.popT>0)continue;h.popT=H.tunnel.pop*(dif.prod||1)*(.75+rand(s)*.5);
+ for(var h of s.hidden){if(h.kind!=='tunnel'||h.dead||h.exitDead)continue;h.popT-=dt;if(h.popT>0)continue;h.popT=H.tunnel.pop*(dif.prod||1)*(.75+rand(s)*.5);
   if(s.units.some(u=>u.hp>0&&u.tunnel===h.id))continue;var ilNear=alive(s,'il').filter(v=>U[v.type].move!=='air'&&dist(v,{x:h.ex,y:h.ey})<26);if(!ilNear.length)continue;
   var a=makeUnit(s,'hz_inf','hz',h.ex+(rand(s)-.5)*1.5,h.ey+(rand(s)-.5)*1.5,{});a.tunnel=h.id;a.raid=1;var prey=ilNear.filter(v=>!U[v.type].building).sort((p,q)=>dist(p,a)-dist(q,a))[0];if(prey&&dist(prey,a)<16)a.goal={x:prey.x,y:prey.y};
   h.exitSeen=1;var text='⚠ חוליית חיזבאללה יצאה ממנהרה מאחורי הקווים (הפיר ליד '+h.name+')';emit(s,text,'tunnelpop');s.events.push({kind:'tunnelpop',x:h.ex,y:h.ey,text,time:s.time})}
@@ -253,6 +283,6 @@ function upgrade(o){for(var u of o.units){var sp=U[u.type];if(!sp)continue;if(u.
 function save(s){var o={...s,events:[],units:s.units.filter(u=>u.hp>0||u.id===s.hq)};return JSON.stringify(o)}
 function restore(raw){try{var o=JSON.parse(raw);if(o.version!==1||!o.sites||!o.units||!DIFF[o.diff])return null;
  o.events=[];o.messages=o.messages||[];o.stats=o.stats||{trophy:0};upgrade(o);return o}catch(e){return null}}
-var api={setupHidden,launchers,launchersAlive,blowOrder,blowUp,supplyZones,inSupplyZone,supplyLevel,liveCaches,upgrade,forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
+var api={setRoute,hold,canPatrol,patrolSuits,hiddenTargets,findHidden,hiddenAt,sealExit,PATROL,setupHidden,launchers,launchersAlive,blowOrder,blowUp,supplyZones,inSupplyZone,supplyLevel,liveCaches,upgrade,forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
 root.LF=root.LF||{};root.LF.sim=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
