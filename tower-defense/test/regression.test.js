@@ -8,7 +8,7 @@ function boot(){const els={};const win={innerWidth:844,innerHeight:390,devicePix
   const ctx=vm.createContext(win);vm.runInContext(fs.readFileSync(path.join(S_DIR,'geo.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(S_DIR,'game.js'),'utf8'),ctx);return {G:win.GAME,els}}
 const SPOTS={dome:[[34.82,32.05],[35.0,32.7],[34.82,31.3],[34.95,29.65],[35.15,31.78],[34.95,32.45]],beam:[[34.8,31.85],[35.08,32.88]],sling:[[34.95,31.95],[34.85,31.5]],arrow:[[34.95,31.65],[35.05,32.35]]};
 function place(G,type,i){const [lo,la]=SPOTS[type][i];G.S.budget+=1000;assert.ok(G.placeTower(type,lo,la),'placed '+type);}
-function eligible(G,tw,th){const T=G.TW[tw.type];if(th.dead)return false;const d=Math.hypot(tw.x-th.x,tw.y-th.y);if(d>T.range)return false;
+function eligible(G,tw,th){const T=G.TW[tw.type];if(th.dead)return false;if(tw.owner&&G.coalition){const b=G.coalition.cbaseOf(tw);if(b&&G.capAt(b,G.effW())<=0)return false} /* v4: a struck coalition base is out of service */const d=Math.hypot(tw.x-th.x,tw.y-th.y);if(d>T.range)return false;
   if(tw.type==='beam')return !th.beamed&&!!T.dwell[th.type]&&th.alt<=T.altMax;
   const pk=T.pk[th.type];if(!pk)return false;const ceil=th.type==='ballistic'&&T.altBal?T.altBal:T.altMax;if(ceil!==undefined&&th.alt>ceil)return false;
   if(T.altMin!==undefined&&(th.alt<T.altMin||th.s/th.len>.93))return false;return th.eng<(pk<.5?2:1)}

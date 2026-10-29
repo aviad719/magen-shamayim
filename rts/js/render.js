@@ -114,6 +114,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
        if(lowF){var fx2=ix+(lowA?9:0);ctx.fillStyle=lv.fuel<=0.01?'#ff4a3a':'#5ab8ff';ctx.fillRect(fx2-3,iy-3.5,5.5,7);ctx.fillRect(fx2+1,iy-5,2,2);ctx.fillStyle='#0a1a24';ctx.fillRect(fx2-1.6,iy-1.5,2.8,1.4)}}ctx.globalAlpha=1}
      if(u.resup&&(s.time*3|0)%3===0){ctx.fillStyle='#8dffb0';ctx.font='bold 9px system-ui';ctx.fillText('⟳',p.x-sz-4,p.y-sz-3)}}
     if(sp.supplier&&selected.has(u.id)){ctx.strokeStyle='rgba(140,255,180,.45)';ctx.setLineDash([4,4]);ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(p.x,p.y,D.SUPPLY.truckRadius*z,0,7);ctx.stroke();ctx.setLineDash([])}
+    if(sp.transportPlane&&z>9){ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.fillStyle='#eaf6ff';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(u.drop&&u.drop.payload==='crate'?'📦 מטוס אספקה':'🪂 מטוס תובלה',p.x,p.y+sz+13);ctx.shadowBlur=0}
     if(selected.has(u.id)&&z>13&&selected.size<=3){ctx.font='bold 9px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(sp.n+(u.soldiers?' ×'+u.soldiers:'')+(u.group?' [G'+u.group+']':''),p.x,p.y+sz+11)}
     if(u.goal&&selected.has(u.id)){var g=screen(u.goal.x,u.goal.y);ctx.strokeStyle='rgba(244,229,147,.35)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(g.x,g.y);ctx.stroke()}
   }
@@ -128,6 +129,9 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     if(al>.15){ctx.font='bold 10px system-ui';ctx.fillStyle='rgba(255,200,180,'+al+')';ctx.fillText('אזור שיגור?',p.x,p.y-R2-6)}continue}
    if(p.x<-40||p.x>w+40||p.y<-40||p.y>h+40)continue;
    if(ev.kind==='reveal'||ev.kind==='tunnelpop'){if(age>2)continue;var t3=age/2;ctx.strokeStyle=ev.kind==='reveal'?'rgba(255,230,120,'+(1-t3)+')':'rgba(255,90,60,'+(1-t3)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,8+t3*40,0,7);ctx.stroke();continue}
+   if(ev.kind==='drop'){if(age>2.5)continue;for(var pi=0;pi<5;pi++){var ox=Math.cos(pi*1.3)*(10+age*6),oy=Math.sin(pi*1.3)*(8+age*4)-18*(1-age/2.5);ctx.fillStyle='rgba(250,250,245,'+(1-age/2.5)+')';ctx.beginPath();ctx.arc(p.x+ox,p.y+oy-6,6,Math.PI,0);ctx.fill();ctx.fillStyle='rgba(60,70,40,'+(1-age/2.5)+')';ctx.fillRect(p.x+ox-1.5,p.y+oy-2,3,4)}continue}
+   if(ev.kind==='resupply'||ev.kind==='sweep'){if(age>2.5)continue;var t4=age/2.5;ctx.strokeStyle=ev.kind==='sweep'?'rgba(120,230,255,'+(1-t4)+')':'rgba(140,255,170,'+(1-t4)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,(ev.r||4)*z*Math.min(1,.3+t4*1.2),0,7);ctx.stroke();continue}
+   if(ev.kind==='deployed'){if(age>1.2)continue;ctx.strokeStyle='rgba(255,210,80,'+(1-age/1.2)+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,8+age*30,0,7);ctx.stroke();continue}
    if(ev.kind==='blown')continue;
    if(ev.kind==='shot'){if(age>.45)continue;var q=screen(ev.tx,ev.ty),k=Math.min(1,age/.18),il=ev.side==='il';
     if(ev.fx==='bullet'){var a0=Math.max(0,k-.35);ctx.strokeStyle=il?'#c8f6ff':'#ffd08a';ctx.lineWidth=1.2;ctx.globalAlpha=1-age/.45;ctx.beginPath();ctx.moveTo(p.x+(q.x-p.x)*a0,p.y+(q.y-p.y)*a0);ctx.lineTo(p.x+(q.x-p.x)*k,p.y+(q.y-p.y)*k);ctx.stroke();
@@ -148,6 +152,25 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
   // Fog of war: one pixel per tile on a small canvas, drawn scaled with smoothing = soft edges.
   if(showFog){var fd=fog.getContext('2d'),img=fogImg,vis=S.inFog;for(var ty=0;ty<M.rows;ty++)for(var tx=0;tx<M.cols;tx++){var o=(ty*M.cols+tx)*4;img.data[o+3]=vis(s,tx+.5,ty+.5)?205:0}
     fd.putImageData(img,0,0);ctx.save();ctx.imageSmoothingEnabled=true;var A=screen(0,0),B=screen(M.cols,M.rows);ctx.drawImage(fog,0,0,M.cols,M.rows,A.x,A.y,B.x-A.x,B.y-A.y);ctx.restore()}
+  // v4: smoke screens, pending barrages (warning ring), falling supply crates, artillery range circles
+  for(var sm of s.smokes||[]){var ps=screen(sm.x,sm.y),R=sm.r*z,left=sm.until-s.time,al=Math.min(1,(s.time-(sm.from||s.time))*2+.2)*Math.min(1,left/2);
+   for(var k=0;k<7;k++){var an=k*.9+s.time*.15,rr=R*(k?.55:0);ctx.fillStyle='rgba(210,214,212,'+(.28*al)+')';ctx.beginPath();ctx.arc(ps.x+Math.cos(an)*rr,ps.y+Math.sin(an)*rr*.8,R*(k?.55:.7),0,7);ctx.fill()}
+   if(z>9){ctx.font='800 10px system-ui';ctx.fillStyle='rgba(40,50,55,'+al+')';ctx.textAlign='center';ctx.fillText('🌫 מסך עשן '+Math.ceil(left)+'ש׳',ps.x,ps.y)}}
+  for(var stk of s.strikes||[]){var pk=screen(stk.x,stk.y),R=stk.r*z;
+   if(stk.kind==='fire'){var pulse=.55+.45*Math.abs(Math.sin(s.time*6));ctx.save();ctx.strokeStyle='rgba(255,60,40,'+pulse+')';ctx.lineWidth=2.5;ctx.setLineDash([8,5]);ctx.beginPath();ctx.arc(pk.x,pk.y,R,0,7);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(255,50,30,'+(.08+.08*pulse)+')';ctx.fill();
+    ctx.strokeStyle='rgba(255,90,60,.8)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(pk.x-8,pk.y);ctx.lineTo(pk.x+8,pk.y);ctx.moveTo(pk.x,pk.y-8);ctx.lineTo(pk.x,pk.y+8);ctx.stroke();
+    ctx.font='800 11px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffd0c0';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(stk.v===D.ARTY.fire.volleys&&stk.t>0?'⚠ מטח בעוד '+Math.ceil(stk.t)+'ש׳':'⚠ מטח!',pk.x,pk.y+R+13);ctx.restore()}
+   else{ctx.save();ctx.strokeStyle='rgba(220,220,220,.8)';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(pk.x,pk.y,R,0,7);ctx.stroke();ctx.setLineDash([]);ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.fillStyle='#eef';ctx.fillText('🌫 עשן',pk.x,pk.y+R+12);ctx.restore()}}
+  for(var cr of s.crates||[]){var pc=screen(cr.x,cr.y),fall=Math.max(0,cr.t)/D.SUPPLY_DROP.fall,yo=fall*40;ctx.save();ctx.strokeStyle='rgba(140,255,170,.7)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.arc(pc.x,pc.y,D.SUPPLY_DROP.radius*z,0,7);ctx.stroke();ctx.setLineDash([]);
+   ctx.fillStyle='#f4f4f0';ctx.beginPath();ctx.arc(pc.x,pc.y-yo-14,9,Math.PI,0);ctx.fill();ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pc.x-9,pc.y-yo-14);ctx.lineTo(pc.x-3,pc.y-yo-4);ctx.moveTo(pc.x+9,pc.y-yo-14);ctx.lineTo(pc.x+3,pc.y-yo-4);ctx.stroke();
+   ctx.fillStyle='#8a6b3a';ctx.fillRect(pc.x-5,pc.y-yo-5,10,8);ctx.strokeStyle='#ffe066';ctx.strokeRect(pc.x-5,pc.y-yo-5,10,8);ctx.restore()}
+  for(var au of s.units){if(au.hp<=0||au.type!=='artillery'||au.side!=='il'||!selected||!selected.has(au.id))continue;var ast=(au.art&&au.art.st)||'';var aiming=ui.aim&&(ui.aim.action==='fire'||ui.aim.action==='smoke');
+   if(ast!=='deployed'&&ast!=='deploying'&&!(ui.aim&&ui.aim.action==='deploy'))continue;var pa2=screen(au.x,au.y);ctx.save();
+   if(ast==='deployed'||ast==='deploying'){ctx.strokeStyle=aiming?'rgba(255,200,80,.95)':'rgba(255,200,80,.6)';ctx.lineWidth=aiming?2.4:1.6;ctx.setLineDash([9,6]);ctx.beginPath();ctx.arc(pa2.x,pa2.y,D.ARTY.range*z,0,7);ctx.stroke();ctx.fillStyle=aiming?'rgba(255,200,80,.07)':'rgba(255,200,80,.03)';ctx.fill();
+    ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(255,120,80,.6)';ctx.beginPath();ctx.arc(pa2.x,pa2.y,D.ARTY.minRange*z,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffe2a0';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText('טווח תותחנים',pa2.x,pa2.y-D.ARTY.range*z+12);
+    if(ast==='deploying'){var fr=1-au.art.t/D.ARTY.deploy;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(pa2.x-16,pa2.y+14,32,4);ctx.fillStyle='#ffd23f';ctx.fillRect(pa2.x-16,pa2.y+14,32*fr,4)}}
+   ctx.restore()}
   if(box){ctx.strokeStyle='#b3f2e3';ctx.fillStyle='rgba(100,230,210,.16)';ctx.lineWidth=1.3;ctx.fillRect(box.x,box.y,box.w,box.h);ctx.strokeRect(box.x,box.y,box.w,box.h)}
 
   // v3 overlays: patrol routes (selected units + the route being drawn) and engineer demolition targets
@@ -182,6 +205,12 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
   if(sp.armor==='light'){ctx.fillStyle='#d8cfa8';ctx.fillRect(-sz*.7,-sz*.42,sz*1.4,sz*.84);ctx.strokeRect(-sz*.7,-sz*.42,sz*1.4,sz*.84);ctx.fillStyle='#333';ctx.fillRect(sz*.15,-sz*.38,sz*.3,sz*.76);
    ctx.fillStyle=u.type==='tech_aa'?'#ff6060':u.type==='tech_atgm'?'#ffcf3f':'#222';ctx.beginPath();ctx.arc(-sz*.3,0,sz*.22,0,7);ctx.fill();ctx.fillRect(-sz*.3,-sz*.05,sz*.65,sz*.1);return}
   if(u.type==='drone'){ctx.fillStyle='#ffcf6a';ctx.beginPath();ctx.moveTo(sz,0);ctx.lineTo(-sz*.6,-sz*.8);ctx.lineTo(-sz*.3,0);ctx.lineTo(-sz*.6,sz*.8);ctx.closePath();ctx.fill();ctx.stroke();return}
+  if(u.type==='c130'){ctx.fillStyle='#b8c2c4';ctx.beginPath();ctx.ellipse(0,0,sz*1.1,sz*.2,0,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#9aa6a8';ctx.beginPath();ctx.moveTo(sz*.25,-sz*1.25);ctx.lineTo(sz*.45,-sz*1.25);ctx.lineTo(sz*.35,sz*1.25);ctx.lineTo(sz*.12,sz*1.25);ctx.closePath();ctx.fill();ctx.stroke();
+   ctx.fillRect(-sz*1.05,-sz*.45,sz*.22,sz*.9);ctx.fillStyle='#2f6fd6';ctx.beginPath();ctx.arc(-sz*.3,0,sz*.12,0,7);ctx.fill();ctx.fillStyle='#444';for(var e2=-1;e2<=1;e2+=2){ctx.fillRect(sz*.38,e2*sz*.5-sz*.06,sz*.22,sz*.12);ctx.fillRect(sz*.34,e2*sz*.92-sz*.06,sz*.22,sz*.12)}return}
+  if(u.type==='artillery'){var st=(u.art&&u.art.st)||'',dep=st==='deployed'||st==='deploying';ctx.fillStyle=dark;ctx.fillRect(-sz*.8,-sz*.55,sz*1.6,sz*.24);ctx.fillRect(-sz*.8,sz*.31,sz*1.6,sz*.24);
+   ctx.fillStyle=body;ctx.fillRect(-sz*.75,-sz*.36,sz*1.5,sz*.72);ctx.strokeRect(-sz*.75,-sz*.36,sz*1.5,sz*.72);ctx.fillStyle=own?'#87956a':'#9c8c57';ctx.fillRect(-sz*.5,-sz*.3,sz*.7,sz*.6);
+   ctx.fillStyle=line;ctx.fillRect(sz*.1,-sz*.07,sz*(dep?1.55:1.15),sz*.14);ctx.fillStyle='#ffe066';ctx.fillRect(sz*(dep?1.55:1.15),-sz*.1,sz*.12,sz*.2);
+   if(dep){ctx.strokeStyle='#d8d0a8';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-sz*.75,-sz*.25);ctx.lineTo(-sz*1.2,-sz*.55);ctx.moveTo(-sz*.75,sz*.25);ctx.lineTo(-sz*1.2,sz*.55);ctx.stroke()}return}
   if(u.type==='heli'){ctx.fillStyle=body;ctx.beginPath();ctx.ellipse(sz*.15,0,sz*.55,sz*.28,0,0,7);ctx.fill();ctx.stroke();ctx.fillRect(-sz*1.0,-sz*.07,sz*.9,sz*.14);
    ctx.save();ctx.rotate(time*25);ctx.strokeStyle='rgba(230,250,240,.75)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-sz*1.1,0);ctx.lineTo(sz*1.1,0);ctx.moveTo(0,-sz*1.1);ctx.lineTo(0,sz*1.1);ctx.stroke();ctx.restore();return}
   if(u.type==='jet'){ctx.fillStyle='#9aa7a3';ctx.beginPath();ctx.moveTo(sz*1.1,0);ctx.lineTo(-sz*.1,-sz*.25);ctx.lineTo(-sz*.35,-sz*.95);ctx.lineTo(-sz*.6,-sz*.95);ctx.lineTo(-sz*.5,-sz*.2);ctx.lineTo(-sz*.9,-sz*.35);ctx.lineTo(-sz*.9,sz*.35);ctx.lineTo(-sz*.5,sz*.2);ctx.lineTo(-sz*.6,sz*.95);ctx.lineTo(-sz*.35,sz*.95);ctx.lineTo(-sz*.1,sz*.25);ctx.closePath();ctx.fill();ctx.stroke();return}

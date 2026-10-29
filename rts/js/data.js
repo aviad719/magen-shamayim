@@ -115,12 +115,17 @@
   var UNITS = {
     // ===== Israel =====
     golani:   { side: 'il', n: 'גולני', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.15, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#8a5a2b', supply: { ammo: 100, use: [.3, 2] },
-                bonus: 'urban', desc: 'חי״ר. הכי טובים בשטח בנוי (כפרים וערים)',
+                bonus: 'urban', sweep: true, desc: 'חי״ר. הכי טובים בשטח בנוי (כפרים וערים). ״🔍 סריקה״ בכפר/עיר חושפת מנהרות ומחסנים',
                 weapons: [{ n: 'רובים', range: 4.5, dmg: 1.4, cd: 1.0, fx: 'bullet', vs: { inf: 1, light: .6, armor: .08, bld: .15, drone: .3, air: .05 } },
                           { n: 'לאו', range: 4, dmg: 22, cd: 6, fx: 'rocket', vs: { inf: .3, light: 1, armor: .55, bld: .6 } }] },
+    // v4: Nahal is no longer buyable (replaced by paratroopers); the type stays so old saves keep working.
     nahal:    { side: 'il', n: 'נח״ל', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.2, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#3e9b3e', supply: { ammo: 100, use: [.3, 2] },
                 bonus: 'forest', desc: 'חי״ר. הכי טובים בשטח מיוער',
                 weapons: [{ n: 'רובים', range: 4.5, dmg: 1.4, cd: 1.0, fx: 'bullet', vs: { inf: 1, light: .6, armor: .08, bld: .15, drone: .3, air: .05 } },
+                          { n: 'לאו', range: 4, dmg: 22, cd: 6, fx: 'rocket', vs: { inf: .3, light: 1, armor: .55, bld: .6 } }] },
+    para:     { side: 'il', n: 'צנחנים', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.2, vision: 6, cost: 420, time: 9, q: 'inf', move: 'foot', beret: '#a3263a', supply: { ammo: 100, use: [.3, 2] },
+                para: true, desc: 'חי״ר מובחר. ״🪂 הצנחה״: מטוס תובלה ממריא מהבסיס ומצניח אותם בכל נקודה במפה',
+                weapons: [{ n: 'רובים', range: 4.5, dmg: 1.5, cd: 1.0, fx: 'bullet', vs: { inf: 1, light: .6, armor: .08, bld: .15, drone: .3, air: .05 } },
                           { n: 'לאו', range: 4, dmg: 22, cd: 6, fx: 'rocket', vs: { inf: .3, light: 1, armor: .55, bld: .6 } }] },
     givati:   { side: 'il', n: 'גבעתי', cls: 'inf', armor: 'inf', soldiers: 8, hpPer: 12, speed: 1.1, vision: 6, cost: 350, time: 8, q: 'inf', move: 'foot', beret: '#8e3fa6', supply: { ammo: 100, use: [.3, 2] },
                 bonus: 'hold', desc: 'חי״ר. הכי טובים בהגנה ובהחזקת שטח (כשהם עומדים)',
@@ -136,6 +141,9 @@
     namer:    { side: 'il', n: 'נמר', cls: 'veh', armor: 'armor', hp: 360, speed: 2.1, vision: 6, cost: 750, time: 12, q: 'veh', move: 'track', size: 0.8, supply: { ammo: 100, use: [.2], fuel: 100, burn: .5 },
                 carry: 16, desc: 'נגמ״ש כבד: נושא עד 2 מחלקות (16 לוחמים)',
                 weapons: [{ n: 'עמדה נשלטת', range: 5.5, dmg: 7, cd: .45, fx: 'bullet', vs: { inf: 1, light: .8, armor: .05, drone: .9, bld: .1 } }] },
+    artillery:{ side: 'il', n: 'תותחנים', cls: 'veh', armor: 'armor', hp: 280, speed: 1.7, vision: 7, cost: 1050, time: 15, q: 'veh', move: 'track', size: .85, supply: { ammo: 100, use: [], fuel: 100, burn: .55 },
+                barrage: { vs: { inf: 1, light: 1, armor: .45, bld: .7 } }, desc: 'סוללת תותחים מתנייעת. ״פריסה״ ← אש על אזור או מסך עשן. לא יורה כשהיא לא פרוסה', weapons: [] },
+    c130:     { side: 'il', n: 'מטוס תובלה', cls: 'air', armor: 'air', hp: 320, speed: 7, vision: 5, size: 1.5, move: 'air', transportPlane: true, noSelect: true, weapons: [] },
     truck:    { side: 'il', n: 'משאית אספקה', cls: 'veh', armor: 'light', hp: 140, speed: 2.4, vision: 5, cost: 300, time: 8, q: 'veh', move: 'wheel', size: 0.6,
                 supplier: true, desc: 'מחדשת תחמושת ודלק לכוחות סביבה', weapons: [] },
     uav_recon:{ side: 'il', n: 'מל״ט סיור', cls: 'air', armor: 'air', hp: 70, speed: 3.2, vision: 11, cost: 400, time: 10, q: 'air', move: 'air', size: .55,
@@ -190,8 +198,8 @@
   };
   // what the player can buy, by production line. Vehicles and helis/jets are built one at a time.
   var BUILD = {
-    inf: ['golani', 'nahal', 'givati', 'engineer'],
-    veh: ['merkava', 'namer', 'truck'],
+    inf: ['golani', 'para', 'givati', 'engineer'],
+    veh: ['merkava', 'namer', 'artillery', 'truck'],
     air: ['uav_recon', 'uav_attack', 'heli', 'jet']
   };
   var QUEUE_MAX = { inf: 5, veh: 1, air: 1 };
@@ -246,14 +254,27 @@
     exit:   { n: 'יציאת מנהרה', blow: 3, bounty: 120 },
     launcher: { n: 'משגר רקטות', reveal: 3, revealEng: 7, revealUav: 6, bounty: 300, salvo: 105,
                 // damage multiplier by attacker type: jets and attack UAVs are best, ground units get there slowly
-                vsBy: { jet: 1.6, uav_attack: 1.8, heli: 1.2, merkava: .6, namer: .6, post: .25, golani: .25, nahal: .25, givati: .25, engineer: .25 } }
+                vsBy: { jet: 1.6, uav_attack: 1.8, heli: 1.2, merkava: .6, namer: .6, post: .25, golani: .25, nahal: .25, para: .25, artillery: .6, givati: .25, engineer: .25 } }
   };
   // Supply: max ammo / fuel, drain per shot (per weapon index) and fuel per tile moved. Refill rates are % of max per second.
   var SUPPLY = { refillAmmo: .09, refillFuel: .11, truckRadius: 4, zoneExtra: 2.5, low: .25, noFuelSpeed: .25 };
+  // ---------- v4: artillery, paratroopers, supply drop, Golani sweep ----------
+  // Artillery: deploy ~10 s, then barrage (area damage, our own units take 50%) or a smoke screen. Range in tiles (≈0.9 km).
+  var ARTY = { deploy: 10, pack: 5, range: 20, minRange: 3,
+    fire:  { radius: 2.8, dmg: 170, volleys: 3, gap: .7, warn: 3, cd: 35, ammo: 20 },
+    smoke: { radius: 3.6, dur: 15, delay: 2, cd: 45, ammo: 10 },
+    friendly: .5 };
+  // Paratroopers: board at a base / our city / a post, a transport plane flies out and drops them; briefly vulnerable on landing.
+  var PARA = { perPlane: 2, landT: 2.5, landVuln: 1.25, spread: 1.4 };
+  // One-time supply airdrop (air tab): crate refills ammo, fuel and some health around it.
+  var SUPPLY_DROP = { key: 'supplydrop', n: 'הצנחת אספקה', cost: 450, radius: 4.5, heal: .35, fall: 2.5,
+    desc: 'חד-פעמי: מטוס מצניח ארגז שמחדש תחמושת, דלק וקצת חיים לכוחות סביבו' };
+  // Golani sweep: only inside a village or city. Reveals hidden objects nearby and +50% damage for 20 s.
+  var SWEEP = { radius: 8, dur: 20, cd: 60, dmg: 1.5 };
   var data = { MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
     ROADS: ROADS, FORESTS: FORESTS, IL_TOWNS: IL_TOWNS, SITES: SITES, HOME: HOME, UNITS: UNITS, BUILD: BUILD, QUEUE_MAX: QUEUE_MAX,
     TERRAIN: TERRAIN, BONUS: BONUS, SITE_T: SITE_T, DIFF: DIFF, TD_CITY: { tyre: 'tyre', sidon: 'sidon', beirut: 'beirut' },
-    TUNNELS: TUNNELS, CACHES: CACHES, LAUNCH_AREAS: LAUNCH_AREAS, HIDDEN: HIDDEN, SUPPLY: SUPPLY };
+    TUNNELS: TUNNELS, CACHES: CACHES, LAUNCH_AREAS: LAUNCH_AREAS, HIDDEN: HIDDEN, SUPPLY: SUPPLY, ARTY: ARTY, PARA: PARA, SUPPLY_DROP: SUPPLY_DROP, SWEEP: SWEEP };
   root.LF = root.LF || {}; root.LF.data = data;
   if (typeof module !== 'undefined' && module.exports) module.exports = data;
 })(typeof window !== 'undefined' ? window : globalThis);

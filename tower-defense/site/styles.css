@@ -102,3 +102,11 @@ font-size:16px;font-weight:800;padding:10px 22px;border-radius:24px;border:1px s
 .card{position:relative}
 .card .toRts{position:absolute;top:10px;left:12px;font-size:12px;font-weight:800;color:#d8fff4;background:#0e3a35;border:1px solid #5fd8c2;border-radius:16px;padding:5px 11px;text-decoration:none}
 @media (orientation:portrait){#panel{padding-bottom:calc(6px + env(safe-area-inset-bottom))}#btnNext{left:50%}}
+
+/* v4: money transfer button (shared pool) */
+.xferBtn{font:inherit;color:inherit;background:#123a48cc;border:1px solid #4fb4c9;border-radius:9px;padding:3px 8px;cursor:pointer;touch-action:manipulation}.xferBtn #warBudget{color:#ffe08a}.xferBtn:active{transform:scale(.96)}
+#offer{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:#020a12a8;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+#offer .ocard{width:min(440px,100%);max-height:100%;overflow:auto;background:linear-gradient(135deg,#0f2448,#0a1830);border:1px solid #6d95ff;border-radius:14px;padding:10px 14px;text-align:center;box-shadow:0 18px 60px #000c}
+#offer h3{margin:0 0 6px;font-size:16px}#offer p{margin:0 0 9px;font-size:12.5px;line-height:1.45;color:#dbe6ff}#offer .orow{display:flex;gap:8px;justify-content:center}#offer .orow button{padding:8px 14px;font-size:13px;font-weight:800;border-radius:9px;border:1px solid #6d95ff;background:#16305e;color:#fff}#offer .orow .primary{background:#e8c13a;color:#1a1400;border-color:#ffe98a}
+#sellBar{position:absolute;top:calc(48px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:8px;align-items:center;background:#2a2408f0;border:1px solid #ffe066;border-radius:10px;padding:5px 9px;font-size:12px;color:#fff3c0;max-width:calc(100% - 140px)}#sellBar button{height:28px;min-width:30px;border-radius:8px;border:1px solid #ffe066;background:#4a3d0a;color:#fff}
+#intro li.v4{color:#dff0ff}

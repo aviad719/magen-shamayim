@@ -4,7 +4,7 @@ function makeBot(Sim,s,opts){opts=opts||{};var D=Sim.D,U=D.UNITS,t=0,log=[],buyI
  function army(){return Sim.alive(s,'il').filter(u=>!U[u.type].building&&U[u.type].move!=='air'&&!u.flight)}
  function centroid(a){var x=0,y=0;a.forEach(u=>{x+=u.x;y+=u.y});return a.length?{x:x/a.length,y:y/a.length}:(Sim.get(s,s.hq)||{x:30,y:115})}
  return {log,tick:function(dt){t+=dt;if(t<2)return;t=0;
-  var order=['golani','merkava','nahal','golani','namer','givati','merkava','uav_attack','golani','engineer','uav_recon','nahal'];
+  var order=['golani','merkava','golani','golani','namer','givati','merkava','uav_attack','golani','engineer','uav_recon','para'];
   for(var k=0;k<3;k++){var ty=order[buyI%order.length];if(s.money>=U[ty].cost){if(Sim.buy(s,ty))buyI++}else break}
   var force=army();if(!force.length)return;var c=centroid(force);
   var z=s.sites.filter(q=>q.owner==='hz').sort((a,b)=>Sim.dist(a,c)-Sim.dist(b,c))[0];if(!z)return;var b=Sim.get(s,z.building);

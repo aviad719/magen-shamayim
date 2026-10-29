@@ -1,4 +1,4 @@
-// shared.js — the shared war save between "מגן שמיים" (tower defense, site root) and
+// shared.js — the shared war save (v4: the war budget is a shared pool; money moves only by the player's own transfers) between "מגן שמיים" (tower defense, site root) and
 // "חזית לבנון" (RTS, /rts/). Both pages live on the same origin, so they share localStorage.
 // Pure data + localStorage; no DOM. Works in the browser (window.SHARED) and in Node tests.
 (function (root) {
@@ -39,8 +39,33 @@
       var o = load(); o.budget = (o.budget || 0) + n; o.earnedTotal = (o.earnedTotal || 0) + n;
       note(o, '+₪' + n + (source ? ' (' + source + ')' : '')); save(o); return o.budget;
     },
-    // RTS: pull the whole war budget into the field wallet (returns the amount taken)
+    // legacy (v1–v3 auto-transfer). No longer called by either game; kept for old code paths.
     takeBudget: function () { var o = load(); var n = Math.floor(o.budget || 0); if (n > 0) { o.budget = 0; note(o, '-₪' + n + ' → חזית'); save(o); } return n; },
+    // v4 manual transfers. The war budget is a shared pool ("קופה משותפת") between the two games.
+    // deposit: a game's wallet pays n into the pool. withdraw: a game pulls up to n out of it (returns what it got).
+    deposit: function (n, from) {
+      n = Math.max(0, Math.floor(n || 0)); if (!n) return 0;
+      var o = load(); o.budget = (o.budget || 0) + n; note(o, '+₪' + n + (from ? ' מ' + from : '')); save(o); return n;
+    },
+    withdraw: function (n, to) {
+      var o = load(); n = Math.max(0, Math.min(Math.floor(n || 0), Math.floor(o.budget || 0))); if (!n) return 0;
+      o.budget -= n; note(o, '-₪' + n + (to ? ' → ' + to : '')); save(o); return n;
+    },
+    // how much a transfer choice moves: '25' | '50' | 'all' | 'custom' (custom capped at the source balance)
+    amountFor: function (choice, balance, custom) {
+      balance = Math.max(0, Math.floor(balance || 0));
+      if (choice === '25') return Math.floor(balance * 0.25);
+      if (choice === '50') return Math.floor(balance * 0.5);
+      if (choice === 'all') return balance;
+      var c = Math.floor(Number(custom) || 0); return Math.max(0, Math.min(balance, c));
+    },
+    // move money between a game wallet and the pool. dir 'out' = wallet → pool, 'in' = pool → wallet.
+    // wallet = { get: fn → number, set: fn(number) }. Returns the amount moved (0 when nothing moved).
+    transfer: function (dir, n, wallet, name) {
+      n = Math.max(0, Math.floor(n || 0)); if (!n || !wallet) return 0;
+      if (dir === 'out') { var have = Math.floor(wallet.get() || 0); n = Math.min(n, have); if (!n) return 0; wallet.set(wallet.get() - n); return api.deposit(n, name); }
+      var got = api.withdraw(n, name); if (got) wallet.set(wallet.get() + got); return got;
+    },
     captured: function () { return load().captured.slice(); },
     capturedCities: function () { return load().captured.map(function (k) { return CITY_INFO[k]; }).filter(Boolean); },
     capture: function (key) {
