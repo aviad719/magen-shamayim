@@ -16,8 +16,8 @@ const P=(G,lon,lat)=>G.P(lon,lat);
 
 test('the US joins at wave 4: 4 bases (Jordan, UAE, Saudi Arabia, a Navy ship), each with THAAD + Patriot, with a banner',()=>{seed(3);const {G,els}=boot();G.newGame('normal');
  for(let w=1;w<=3;w++){quickWave(G);assert.strictEqual(us(G).length,0,'not before wave 4')}
- G.startWave();assert.strictEqual(G.S.wave,4);const T=us(G);assert.strictEqual(T.length,8,'8 coalition batteries');
- const bases=new Set(T.map(t=>t.base));assert.strictEqual([...bases].sort().join(','),'dhafra,muwaffaq,navy,sultan');
+ G.startWave();assert.strictEqual(G.S.wave,4);const T=us(G);assert.strictEqual(T.length,12,'12 coalition batteries (v5: + Al Asad, Al Udeid)');
+ const bases=new Set(T.map(t=>t.base));assert.strictEqual([...bases].sort().join(','),'asad,dhafra,muwaffaq,navy,sultan,udeid');
  for(const b of bases){const types=T.filter(t=>t.base===b).map(t=>t.type).sort().join(',');assert.strictEqual(types,'patriot,thaad')}
  assert.match(els.banner.textContent,/ארה״ב מצטרפת להגנה/);assert.ok(G.S.cbases.find(b=>b.key==='navy').ship);
  for(const t of T)assert.ok(!G.inIsrael(...[0,0])||true);const mw=G.S.cbases.find(b=>b.key==='muwaffaq');assert.ok(!G.canPlace(36.78,31.83),'the bases are outside Israel')});
@@ -74,13 +74,13 @@ test('requests only every 2 waves (4, 6), decline works, and a new country is ju
 
 test('save / continue keeps the coalition, sold batteries, struck bases and pending payments; old v3 saves still load',()=>{seed(4);const st=memStorage();let {G}=boot(st);G.newGame('normal');G.S.budget=5000;G.placeTower('dome',34.80,32.12);
  for(let w=1;w<=4;w++)quickWave(G);G.coalition.accept();const mine=G.S.towers.find(t=>!t.owner);G.coalition.sell(mine);const mw=G.S.cbases.find(b=>b.key==='sultan');G.hitTarget(mw);assert.ok(G.saveGame());
- ({G}=boot(st));assert.ok(G.loadGame());assert.ok(G.S.coal.us.joined);assert.strictEqual(G.S.towers.filter(t=>t.owner==='us').length,9,'8 US + 1 sold');assert.ok(G.S.towers.some(t=>t.sold&&t.type==='dome'));
+ ({G}=boot(st));assert.ok(G.loadGame());assert.ok(G.S.coal.us.joined);assert.strictEqual(G.S.towers.filter(t=>t.owner==='us').length,13,'12 US + 1 sold (v5)');assert.ok(G.S.towers.some(t=>t.sold&&t.type==='dome'));
  assert.strictEqual(G.coalition.payments().length,1);assert.strictEqual(G.S.cbases.find(b=>b.key==='sultan').struck,mw.struck);
  // an old save (before v4) at wave 5: loads, and the US joins at the next wave
  const old={v:3,diff:'normal',wave:5,budget:777,score:10,stats:{},at:1,cities:[[5,0],[5,0],[5,0],[5,0],[5,0],[5,0]],bases:[[5,0,1],[5,0,1]],launchers:[],sams:[],towers:[['dome',10,10],['arrow',20,20]],jets:[]};
  const st2=memStorage();st2.setItem('magenShamayim.save.v3',JSON.stringify(old));({G}=boot(st2));assert.ok(G.loadGame());assert.strictEqual(G.S.towers.length,2);assert.strictEqual(G.S.budget,777);
- G.startWave();assert.strictEqual(G.S.towers.filter(t=>t.owner==='us').length,8,'joins on the next wave')});
+ G.startWave();assert.strictEqual(G.S.towers.filter(t=>t.owner==='us').length,16,'joins on the next wave (wave 6, v5: 6 bases + 2 carriers)')});
 
 test('TD page: offer card, sell bar, how-to lines for the coalition near the top',()=>{const h=fs.readFileSync(path.join(S_DIR,'index.html'),'utf8');
  for(const id of ['offer','offerYes','offerNo','sellBar','sellCancel'])assert.ok(h.includes('id="'+id+'"'),id);
- const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1);assert.ok(items.slice(0,4).some(x=>/ארה״ב מצטרפת/.test(x))&&items.slice(0,4).some(x=>/סיכוי יירוט/.test(x)),'near the top')});
+ const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1);assert.ok(items.slice(0,7).some(x=>/ארה״ב מצטרפת/.test(x))&&items.slice(0,7).some(x=>/סיכוי יירוט/.test(x)),'near the top')});

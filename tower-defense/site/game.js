@@ -57,22 +57,44 @@ const TT={ // threat types
   rocket:{n:'רקטה מלבנון',spd:12,dmg:10,rw:10,c:'#ff9a4a',sz:4} // v0.4: from launch areas still alive on the Lebanon front (RTS)
 };
 const TW={
-  dome:{n:'כיפת ברזל',cost:150,shot:5,range:75,reload:.85,mag:20,refill:6,spd:280,pk:{drone:.85,uav:.85,cruise:.8,ballistic:.3,rocket:.9},altMax:.35,altBal:.5,c:'#38d6ff'},
+  dome:{n:'כיפת ברזל',cost:150,shot:5,range:75,reload:.85,mag:20,refill:5,spd:280,pk:{drone:.85,uav:.85,cruise:.8,ballistic:.3,rocket:.9},altMax:.35,altBal:.5,c:'#38d6ff'},
   beam:{n:'מגן אור',cost:250,shot:1,range:48,reload:.3,mag:Infinity,refill:0,dwell:{drone:.7,uav:1,cruise:2,rocket:.8},altMax:.25,c:'#5dff9a'},
-  sling:{n:'שרביט קסמים',cost:300,shot:12,range:210,reload:1.4,mag:12,refill:8,spd:340,pk:{uav:.75,cruise:.75,ballistic:.75,rocket:.7},altMax:.75,altBal:.9,c:'#b98cff'},
-  arrow:{n:'חץ',cost:450,shot:30,range:650,reload:1.6,mag:6,refill:12,spd:600,pk:{ballistic:.8},altMin:.25,c:'#ffc94a'},
+  sling:{n:'שרביט קסמים',cost:300,shot:12,range:210,reload:1.4,mag:8,refill:5,spd:340,pk:{uav:.75,cruise:.75,ballistic:.75,rocket:.7},altMax:.75,altBal:.9,c:'#b98cff'},
+  arrow:{n:'חץ',cost:450,shot:30,range:650,reload:1.6,mag:4,refill:8,spd:600,pk:{ballistic:.8},altMin:.25,c:'#ffc94a'},
   // v4: coalition systems (not for sale to the player; they stand at coalition bases and fire for free)
-  thaad:{n:'THAAD',cost:900,shot:0,range:260,reload:2.2,mag:8,refill:14,spd:620,pk:{ballistic:.85,cruise:.4},altMin:.22,c:'#7fb2ff',ally:true},
-  patriot:{n:'פטריוט',cost:700,shot:0,range:140,reload:1.3,mag:8,refill:10,spd:430,pk:{ballistic:.65,cruise:.65,uav:.6,drone:.45,rocket:.55},altMax:.9,altBal:.95,c:'#a9c8ff',ally:true}
+  thaad:{n:'THAAD',cost:900,shot:0,range:260,reload:2.2,mag:6,refill:8,spd:620,pk:{ballistic:.85,cruise:.4},altMin:.22,c:'#7fb2ff',ally:true},
+  patriot:{n:'פטריוט',cost:700,shot:0,range:140,reload:1.3,mag:8,refill:5,spd:430,pk:{ballistic:.65,cruise:.65,uav:.6,drone:.45,rocket:.55},altMax:.9,altBal:.95,c:'#a9c8ff',ally:true},
+  // v5: ship-based interceptors on the US aircraft carriers (a strong Patriot)
+  sm6:{n:'יירוט ימי SM-6',cost:900,shot:0,range:190,reload:1.0,mag:10,refill:5,spd:520,pk:{ballistic:.75,cruise:.8,uav:.75,drone:.6,rocket:.65},altMax:.95,altBal:.98,c:'#8fe0ff',ally:true}
 };
-const TWL={dome:'כ',beam:'ל',sling:'ש',arrow:'ח',thaad:'T',patriot:'P'};
+// v5: battery upgrades: 4 tracks × 3 levels (own batteries only); a sold battery keeps its upgrades
+const UPG={range:{n:'טווח',ic:'📡'},rate:{n:'קצב ירי וטעינה',ic:'⚡'},hit:{n:'סיכוי פגיעה',ic:'🎯'},mag:{n:'גודל מחסנית',ic:'📦'}};
+const UPG_COST=[.4,.7,1.1],UPG_MAX=3;
+const upLv=(tw,k)=>(tw.up&&tw.up[k])||0;
+const tRange=tw=>TW[tw.type].range*(1+.15*upLv(tw,'range'));
+const tReload=tw=>TW[tw.type].reload*(1-.15*upLv(tw,'rate'));
+const tRefill=tw=>TW[tw.type].refill*(1-.15*upLv(tw,'rate'));
+const tMag=tw=>{const m=TW[tw.type].mag;return m===Infinity?m:Math.round(m*(1+.25*upLv(tw,'mag')))};
+const tPk=(tw,ty)=>{const p=TW[tw.type].pk&&TW[tw.type].pk[ty];return p?Math.min(.98,p+.05*upLv(tw,'hit')):0};
+const tDwell=(tw,ty)=>{const d=TW[tw.type].dwell&&TW[tw.type].dwell[ty];return d?d*(1-.15*upLv(tw,'hit')):0};
+const upTracks=tw=>Object.keys(UPG).filter(k=>!(k==='mag'&&TW[tw.type].mag===Infinity));
+const upStepCost=(tw,l)=>Math.round(TW[tw.type].cost*UPG_COST[l]/5)*5;
+const upCost=(tw,k)=>upLv(tw,k)>=UPG_MAX?0:upStepCost(tw,upLv(tw,k));
+function upSpent(tw){let s=0;for(const k of Object.keys(UPG))for(let l=0;l<upLv(tw,k);l++)s+=upStepCost(tw,l);return s}
+const upTotal=tw=>Object.keys(UPG).reduce((a,k)=>a+upLv(tw,k),0);
+const TWL={dome:'כ',beam:'ל',sling:'ש',arrow:'ח',thaad:'T',patriot:'P',sm6:'S'};
 // v4: the coalition, data-driven — another country is one more entry: its bases, the batteries there, what it asks to buy and on what terms.
 const COALITION=[
   {key:'us',n:'ארה״ב',flag:'🇺🇸',join:4,every:2,mult:1.5,installments:3,buys:['dome','sling','arrow','beam'],
    bases:[{key:'muwaffaq',n:'מוופק סלטי',cn:'ירדן',lon:36.78,lat:31.83,bat:['thaad','patriot'],wIR:.04,wYE:.01},
           {key:'dhafra',n:'אל-דפרה',cn:'איחוד האמירויות',lon:54.55,lat:24.25,bat:['thaad','patriot'],wIR:.04,wYE:.02},
           {key:'sultan',n:'פרינס סולטאן',cn:'ערב הסעודית',lon:47.58,lat:24.06,bat:['thaad','patriot'],wIR:.04,wYE:.05},
-          {key:'navy',n:'משחתת הצי',cn:'הים האדום',lon:37.2,lat:24.8,bat:['thaad','patriot'],ship:true,wIR:.02,wYE:.08}]}
+          {key:'navy',n:'משחתת הצי',cn:'הים האדום',lon:37.2,lat:24.8,bat:['thaad','patriot'],ship:true,wIR:.02,wYE:.08},
+          // v5: more US presence: two more bases with the others at wave 4, two aircraft carriers at wave 6
+          {key:'asad',n:'עין אל-אסד',cn:'עיראק',lon:42.44,lat:33.79,bat:['thaad','patriot'],wIR:.05,wYE:.01},
+          {key:'udeid',n:'אל-עודייד',cn:'קטאר',lon:51.31,lat:25.12,bat:['thaad','patriot'],wIR:.04,wYE:.02},
+          {key:'cvnGulf',n:'נושאת המטוסים במפרץ',cn:'המפרץ הפרסי',lon:50.3,lat:28.1,bat:['sm6','sm6'],ship:true,carrier:true,join:6,wIR:.05,wYE:.02},
+          {key:'cvnMed',n:'נושאת המטוסים מול ישראל',cn:'מול חופי ישראל',lon:32.7,lat:32.9,bat:['sm6','sm6'],ship:true,carrier:true,join:6,wIR:.03,wYE:.02}]}
 ];
 const COAL=k=>COALITION.find(c=>c.key===k);
 const JT={
@@ -100,7 +122,7 @@ function newState(d){d=DIFF[d]?d:diff;
     bases:AIRBASES.map(b=>({n:b[0],...P(b[1],b[2]),side:b[3],hp:HITS,flash:0,kind:'base',dead:false,active:false,wake:0})),
     launchers:LAUNCH.map(l=>({n:l[0],...P(l[1],l[2]),cc:l[3],kind:l[4],ly:l[5]||15,struck:-99,smoke:0})),
     sams:SAMPOS.map(s=>({...P(s[0],s[1]),alive:true,cd:rnd(0,2),range:170,ang:rnd(0,6)})),
-    cbases:COALITION.flatMap(c=>c.bases.map(b=>({key:b.key,n:b.n,cn:b.cn,country:c.key,...P(b.lon,b.lat),kind:'cbase',ship:!!b.ship,struck:-99,hits:0,flash:0,wIR:b.wIR,wYE:b.wYE}))),coal:{},offer:null,sellMode:null,payments:[],
+    cbases:COALITION.flatMap(c=>c.bases.map(b=>({key:b.key,n:b.n,cn:b.cn,country:c.key,...P(b.lon,b.lat),kind:'cbase',ship:!!b.ship,carrier:!!b.carrier,join:b.join||c.join,on:false,struck:-99,hits:0,flash:0,wIR:b.wIR,wYE:b.wYE}))),coal:{},offer:null,sellMode:null,payments:[],
     towers:[],threats:[],shots:[],jets:[],samMissiles:[],bombs:[],parts:[],rings:[],texts:[],beams:[],
     queue:[],stats:{kills:0,leaks:0,jetsLost:0,strikes:0,shots:0},shake:0,alertT:0,jetSeq:0};
 }
@@ -162,11 +184,12 @@ function buildWave(n){const W=WAVES[n-1],D=DIFF[S.diff],q=[];
 function syncCapturedCities(){if(!window.SHARED)return;for(const c of window.SHARED.capturedCities()){if(!S.cities.some(city=>city.n===c.n))S.cities.push({n:c.n,...P(c.lon,c.lat),w:c.w,side:-1,hp:HITS,flash:0,kind:'city',dead:false});}}
 function startWave(){if(S.inWave||S.over)return;syncCapturedCities();if(S.offer||S.sellMode)closeOffer(false,true);S.started=true;S.wave++;S.inWave=true;S.waveT=0;const joinedNow=coalitionJoin();
   if(S.wave>=AIR_WAVE)for(const b of S.bases)if(!b.active&&!b.dead){b.active=true;b.wake=1;boom(b.x,b.y,4,'#3cc8ff')}S.queue=buildWave(S.wave);S.waveTotal=S.queue.length;
-  $('btnNext').classList.add('hidden');const nRk=S.queue.filter(e=>e.type==='rocket').length;banner('גל '+S.wave+(joinedNow.length?' · '+joinedNow.map(c=>c.flag+' '+c.n).join(', ')+' מצטרפת להגנה!':'')+(S.wave===AIR_WAVE&&!joinedNow.length?' · בסיסי רמת דוד ונבטים התעוררו ✈':'')+(nRk?' · 🚀 +'+nRk+' רקטות מלבנון':''));
-  if(joinedNow.length)hint(joinedNow.map(c=>c.flag+' '+c.n+' מצטרפת: '+c.bases.length+' בסיסים ('+c.bases.map(b=>b.n).join(', ')+') עם THAAD ופטריוט שמיירטים לבד. איראן יכולה לתקוף גם אותם.').join(' '),6500);
+  $('btnNext').classList.add('hidden');const nRk=S.queue.filter(e=>e.type==='rocket').length;banner('גל '+S.wave+(joinedNow.length?' · '+joinedNow.map(c=>c.flag+' '+c.n).join(', ')+' מצטרפת להגנה!':'')+(S.wave===AIR_WAVE&&!joinedNow.length?' · בסיסי רמת דוד ונבטים התעוררו ✈':'')+(nRk?' · 🚀 +'+nRk+' רקטות מלבנון':'')+((S.basesJoined||[]).length?' · '+COAL(S.basesJoined[0].country).flag+' '+(S.basesJoined.every(b=>b.carrier)?S.basesJoined.length+' נושאות מטוסים הגיעו!':'בסיסים חדשים: '+S.basesJoined.map(b=>b.n).join(', ')):''));
+  if(joinedNow.length)hint(joinedNow.map(c=>{const bs=S.cbases.filter(b=>b.country===c.key&&b.on);return c.flag+' '+c.n+' מצטרפת: '+bs.length+' בסיסים ('+bs.map(b=>b.n).join(', ')+') עם THAAD ופטריוט שמיירטים לבד. איראן יכולה לתקוף גם אותם.'+(c.bases.some(b=>b.join>S.wave)?' בגל '+Math.min(...c.bases.filter(b=>b.join>S.wave).map(b=>b.join))+' יגיעו גם נושאות מטוסים.':'')}).join(' '),6500);
+  else if((S.basesJoined||[]).length)hint(COAL(S.basesJoined[0].country).flag+' '+S.basesJoined.map(b=>b.n+' ('+b.cn+')').join(' ו')+(S.basesJoined.every(b=>b.carrier)?': יירוט מהים עם SM-6. איראן ותימן יכולות לתקוף גם אותן.':' הצטרפו להגנה.'),6000);
   if(S.wave>=AIR_WAVE)$('airLock').textContent='פתוח';updateUI()}
 function endWave(){S.inWave=false;const bonus=Math.round((BONUS0+S.wave*BONUSW)*DIFF[S.diff].bonus);S.budget+=bonus;const paid=payInstallments();if(window.SHARED)window.SHARED.addBudget(bonus,'גל '+S.wave);addScore(100*S.wave);
-  for(const t of S.towers){t.ammo=TW[t.type].mag;t.refT=0}
+  for(const t of S.towers){t.ammo=tMag(t);t.refT=0}
   if(S.wave>=WAVES.length){S.won=true;gameOver(true);return}
   recordBest();saveGame();
   banner('הגל נהדף! בונוס ₪'+bonus+' למלחמה'+(paid?' · 💵 תשלום מהקואליציה ₪'+paid:''));coalitionOffer();$('btnNext').textContent='התחל גל '+(S.wave+1)+' ▶';$('btnNext').classList.remove('hidden');
@@ -174,7 +197,7 @@ function endWave(){S.inWave=false;const bonus=Math.round((BONUS0+S.wave*BONUSW)*
   if(S.wave+1===AIR_WAVE)setTimeout(()=>hint('בסיסי רמת דוד ונבטים התעוררו: חיל האוויר זמין ✈ (מעכשיו איראן תוקפת גם אותם)',4500),2300);updateUI()}
 function targetList(ye){const l=S.cities.filter(c=>!c.dead).map(c=>[c,ye?(c.n==='אילת'?1.2:c.w*.6):c.w]);
   for(const b of S.bases)if(b.active&&!b.dead)l.push([b,ye?(b.n==='נבטים'?.5:.04):(b.n==='רמת דוד'?.12:.08)]);
-  for(const b of S.cbases)if((S.coal[b.country]||{}).joined)l.push([b,ye?b.wYE:b.wIR]);return l}
+  for(const b of S.cbases)if(cbOn(b))l.push([b,ye?b.wYE:b.wIR]);return l}
 function spawnRocket(e){const tl=S.cities.filter(c=>!c.dead);if(!tl.length)return;const sx=LB0.x+rnd(-14,14),sy=LB0.y+rnd(-8,8);tl.sort((a,b)=>Math.hypot(a.x-sx,a.y-sy)-Math.hypot(b.x-sx,b.y-sy));const city=tl[Math.random()<.65?0:Math.min(1,tl.length-1)];
   const tx=city.x+rnd(-6,6),ty=city.y+rnd(-6,6);const th={type:'rocket',sx,sy,tx,ty,city,s:0,alt:0,x:sx,y:sy,vx:0,vy:0,eng:0,trail:[],wob:0,dead:false,lb:true};th.len=Math.hypot(tx-sx,ty-sy);th.spd=TT.rocket.spd*rnd(.9,1.1)*DIFF[S.diff].spd;th.from=-1;S.threats.push(th)}
 function spawn(e){if(e.lb)return spawnRocket(e);const L=S.launchers[e.li];if(!L||capAt(L,S.wave)<=0)return; // struck this wave → remaining launches cancelled
@@ -204,15 +227,15 @@ function update(dt){
     if(th.s>=th.len){th.dead=true;boom(th.x,th.y,th.type==='ballistic'?6:4,'#ff6a2a');S.shake=Math.min(1,S.shake+(th.type==='ballistic'?.6:.25));sfx('boom');hitTarget(th.city)}}
   // towers
   for(const tw of S.towers){const T=TW[tw.type];tw.cd-=dt;const cb=tw.owner?cbaseOf(tw):null,ccap=cb?capAt(cb,effW()):1;if(cb&&(ccap<=0||!(S.coal[tw.owner]||{}).joined))continue;
-    if(tw.ammo<=0&&T.mag!==Infinity){tw.refT+=dt;if(tw.refT>=T.refill){tw.ammo=T.mag;tw.refT=0}continue}
+    if(tw.ammo<=0&&T.mag!==Infinity){tw.refT+=dt;if(tw.refT>=tRefill(tw)){tw.ammo=tMag(tw);tw.refT=0}continue}
     if(tw.type==='beam'){beamUpdate(tw,T,dt);continue}
     if(tw.cd>0)continue; // v0.2: batteries never idle for lack of budget (cost floors at ₪0)
-    let best=null,bs=1e9;for(const th of S.threats){if(th.dead)continue;const pk=T.pk[th.type];if(!pk)continue;
+    let best=null,bs=1e9;for(const th of S.threats){if(th.dead)continue;const pk=tPk(tw,th.type);if(!pk)continue;
       if(T.altMax!==undefined&&th.alt>(th.type==='ballistic'&&T.altBal?T.altBal:T.altMax))continue;if(T.altMin!==undefined&&(th.alt<T.altMin||th.s/th.len>.93))continue;
-      const d=dist(tw,th);if(d>T.range)continue;const need=pk<.5?2:1;if(th.eng>=need)continue;
+      const d=dist(tw,th);if(d>tRange(tw))continue;const need=pk<.5?2:1;if(th.eng>=need)continue;
       const score=(th.len-th.s)/th.spd - (th.type==='ballistic'?2:0);if(score<bs){bs=score;best=th}}
-    if(best){tw.cd=T.reload/ccap;tw.ammo--;if(!tw.owner)S.budget=Math.max(0,S.budget-T.shot);best.eng++;S.stats.shots++;tw.fired=(tw.fired||0)+1;tw.flash=.35;
-      S.shots.push({x:tw.x,y:tw.y,alt:0,tgt:best,spd:best.type==='ballistic'?T.spd*2.4:T.spd,pk:T.pk[best.type],c:T.c,trail:[],life:0,from:'tw',kind:tw.type,ally:tw.owner||''});sfx('launch')}}
+    if(best){tw.cd=tReload(tw)/ccap;tw.ammo--;if(!tw.owner)S.budget=Math.max(0,S.budget-T.shot);best.eng++;S.stats.shots++;tw.fired=(tw.fired||0)+1;tw.flash=.35;
+      S.shots.push({x:tw.x,y:tw.y,alt:0,tgt:best,spd:best.type==='ballistic'?T.spd*2.4:T.spd,pk:tPk(tw,best.type),c:T.c,trail:[],life:0,from:'tw',kind:tw.type,ally:tw.owner||''});sfx('launch')}}
   // interceptors & jet missiles
   for(const m of S.shots){if(m.done)continue;m.life+=dt;const t=m.tgt;
     if(t.dead||m.life>8){m.done=true;if(!t.dead)t.eng=Math.max(0,t.eng-1);continue}
@@ -243,22 +266,27 @@ function hitTarget(c){if(c.kind==='cbase'){c.struck=effW();c.hits=(c.hits||0)+1;
 function addScore(p){S.score=Math.round(S.score+p*DIFF[S.diff].score)}
 function kill(t,byJet,ally){if(t.dead)return;t.dead=true;S.stats.kills++;addScore(PTS[t.type]||10);if(ally){const c=COAL(ally);S.stats.allyKills=(S.stats.allyKills||0)+1;floatText(t.x,t.y,(c?c.flag:'')+' יירוט','#a9c8ff');return}const rw=TT[t.type].rw;S.budget+=rw;floatText(t.x,t.y,'+₪'+rw,'#7dffb2')}
 function beamUpdate(tw,T,dt){
-  if(tw.tgt&&(tw.tgt.dead||dist(tw,tw.tgt)>T.range||tw.tgt.alt>T.altMax)){tw.tgt.beamed=false;tw.tgt=null;tw.dw=0}
+  if(tw.tgt&&(tw.tgt.dead||dist(tw,tw.tgt)>tRange(tw)||tw.tgt.alt>T.altMax)){tw.tgt.beamed=false;tw.tgt=null;tw.dw=0}
   if(!tw.tgt){if(tw.cd>0)return;let best=null,bs=1e9;
-    for(const th of S.threats){if(th.dead||th.beamed||!T.dwell[th.type]||th.alt>T.altMax)continue;const d=dist(tw,th);if(d>T.range)continue;const sc=d;if(sc<bs){bs=sc;best=th}}
+    for(const th of S.threats){if(th.dead||th.beamed||!T.dwell[th.type]||th.alt>T.altMax)continue;const d=dist(tw,th);if(d>tRange(tw))continue;const sc=d;if(sc<bs){bs=sc;best=th}}
     if(best){tw.tgt=best;best.beamed=true;tw.dw=0;if(!tw.owner)S.budget=Math.max(0,S.budget-T.shot);S.stats.shots++;tw.fired=(tw.fired||0)+1;tw.flash=.35}return}
   tw.dw+=dt;if(Math.random()<dt*12)S.parts.push({x:tw.tgt.x,y:tw.tgt.y,alt:tw.tgt.alt,vx:rnd(-20,20),vy:rnd(-20,20),life:.3,t:0,c:'#b6ffd0',sz:1.4});
-  if(tw.dw>=T.dwell[tw.tgt.type]){kill(tw.tgt,false,tw.owner||'');boom(tw.tgt.x,tw.tgt.y,2.5,T.c,tw.tgt.alt);sfx('hit');tw.tgt.beamed=false;tw.tgt=null;tw.dw=0;tw.cd=T.reload}}
+  if(tw.dw>=tDwell(tw,tw.tgt.type)){kill(tw.tgt,false,tw.owner||'');boom(tw.tgt.x,tw.tgt.y,2.5,T.c,tw.tgt.alt);sfx('hit');tw.tgt.beamed=false;tw.tgt=null;tw.dw=0;tw.cd=tReload(tw)}}
 
 // ---------- v4: coalition (US joins defensively, buys batteries, pays in installments) ----------
 function cbaseOf(tw){return S.cbases.find(b=>b.key===tw.base)}
 // coalition batteries are drawn as a small row under their base marker (their world position is next to the base)
 function towerScreen(t){if(!t.owner)return w2s(t.x,t.y);const b=cbaseOf(t);if(!b)return w2s(t.x,t.y);const row=S.towers.filter(x=>x.base===t.base),i=row.indexOf(t),p=w2s(b.x,b.y);return {x:p.x+(i-(row.length-1)/2)*17,y:p.y+19}}
-function coalitionJoin(){const now=[];for(const c of COALITION){if((S.coal[c.key]||{}).joined||S.wave<c.join)continue;S.coal[c.key]={joined:true,at:S.wave};now.push(c);
-    for(const b of S.cbases.filter(b=>b.country===c.key)){const def=c.bases.find(x=>x.key===b.key);def.bat.forEach((type,i)=>{const a=i*2.4+.6;S.towers.push({type,x:b.x+Math.cos(a)*7,y:b.y+Math.sin(a)*7,ammo:TW[type].mag,cd:0,refT:0,tgt:null,dw:0,owner:c.key,base:b.key})});b.flash=1;boom(b.x,b.y,4,'#3c78ff')}}
-  return now}
-function payInstallments(){let sum=0;for(const p of S.payments){if(p.left<=0)continue;S.budget+=p.per;sum+=p.per;p.left--;p.paid=(p.paid||0)+1}S.payments=S.payments.filter(p=>p.left>0);return sum}
-function offerText(o){const c=COAL(o.country),T=TW[o.type];return c.flag+' '+c.n+' מבקשת לקנות סוללת '+T.n+' ב-×'+c.mult+' מהמחיר: ₪'+o.price+' (עלתה לכם ₪'+T.cost+'). התשלום ב-'+o.n+' פעימות של ₪'+o.per+' בסוף כל אחד מ-'+o.n+' הגלים הבאים. הסוללה עוברת לאחד הבסיסים שלהם וממשיכה ליירט משם.'}
+// v5: bases activate one by one (each base has its own join wave: the carriers come at wave 6)
+const cbOn=b=>b.on&&(S.coal[b.country]||{}).joined;
+function activateBase(b){const c=COAL(b.country),def=c.bases.find(x=>x.key===b.key);b.on=true;
+  if(!S.towers.some(t=>t.base===b.key&&!t.sold))def.bat.forEach((type,i)=>{const a=i*2.4+.6;S.towers.push({type,x:b.x+Math.cos(a)*7,y:b.y+Math.sin(a)*7,ammo:TW[type].mag,cd:0,refT:0,tgt:null,dw:0,owner:c.key,base:b.key})});
+  b.flash=1;boom(b.x,b.y,4,'#3c78ff')}
+function coalitionJoin(){const now=[],later=[];for(const c of COALITION){if(!(S.coal[c.key]||{}).joined&&S.wave>=c.join){S.coal[c.key]={joined:true,at:S.wave};now.push(c)}
+    if(!(S.coal[c.key]||{}).joined)continue;
+    for(const b of S.cbases.filter(b=>b.country===c.key&&!b.on&&S.wave>=b.join)){activateBase(b);if(!now.includes(c))later.push(b)}}
+  S.basesJoined=later;return now}function payInstallments(){let sum=0;for(const p of S.payments){if(p.left<=0)continue;S.budget+=p.per;sum+=p.per;p.left--;p.paid=(p.paid||0)+1}S.payments=S.payments.filter(p=>p.left>0);return sum}
+function offerText(o){const c=COAL(o.country),T=TW[o.type];return c.flag+' '+c.n+' מבקשת לקנות סוללת '+T.n+' ב-×'+c.mult+' מהמחיר: ₪'+o.price+' (עלתה לכם ₪'+T.cost+'; סוללה משודרגת שווה יותר: המחיר + השדרוגים ×'+c.mult+'). התשלום ב-'+o.n+' פעימות של ₪'+o.per+' בסוף כל אחד מ-'+o.n+' הגלים הבאים. הסוללה עוברת לאחד הבסיסים שלהם וממשיכה ליירט משם.'}
 function coalitionOffer(){if(S.over||S.offer||S.wave>=WAVES.length)return null;
   for(const c of COALITION){const st=S.coal[c.key];if(!st||!st.joined||S.wave<c.join||(S.wave-c.join)%c.every!==0||st.lastOffer===S.wave)continue;
     const owned=c.buys.filter(t=>S.towers.some(tw=>!tw.owner&&tw.type===t));if(!owned.length)continue;st.lastOffer=S.wave;
@@ -267,17 +295,39 @@ function coalitionOffer(){if(S.over||S.offer||S.wave>=WAVES.length)return null;
 function showOffer(){const o=S.offer,el=$('offer');if(!o||!el||!el.classList)return;const c=COAL(o.country);$('offerTitle').textContent=c.flag+' בקשת רכש מ'+c.n;$('offerText').textContent=offerText(o);el.classList.remove('hidden')}
 function closeOffer(accepted,quiet){const el=$('offer');if(el&&el.classList)el.classList.add('hidden');const sb=$('sellBar');if(sb&&sb.classList)sb.classList.add('hidden');
   if(!accepted&&S.offer&&!quiet)hint(COAL(S.offer.country).n+': הבנו, אולי בפעם הבאה',2000);if(!accepted){S.offer=null;S.sellMode=null}}
-function acceptOffer(){if(!S.offer)return false;S.sellMode=S.offer;const el=$('offer');if(el&&el.classList)el.classList.add('hidden');const sb=$('sellBar');if(sb&&sb.classList){$('sellText').textContent='הקישו על סוללת '+TW[S.offer.type].n+' שתרצו למכור ('+COAL(S.offer.country).flag+' ₪'+S.offer.price+')';sb.classList.remove('hidden')}
+function acceptOffer(){if(!S.offer)return false;S.sellMode=S.offer;const el=$('offer');if(el&&el.classList)el.classList.add('hidden');const sb=$('sellBar');if(sb&&sb.classList){$('sellText').textContent='הקישו על סוללת '+TW[S.offer.type].n+' שתרצו למכור ('+COAL(S.offer.country).flag+' ₪'+S.offer.price+(S.towers.some(t=>!t.owner&&t.type===S.offer.type&&upTotal(t))?', משודרגת: יותר':'')+')';sb.classList.remove('hidden')}
   if(view!=='israel')camTo('israel');return true}
 function sellTower(tw){const o=S.sellMode||S.offer;if(!o||!tw||tw.owner||tw.type!==o.type)return false;const c=COAL(o.country);
-  const bases=S.cbases.filter(b=>b.country===c.key).sort((a,b)=>S.towers.filter(t=>t.base===a.key&&t.sold).length-S.towers.filter(t=>t.base===b.key&&t.sold).length||(a.hits-b.hits));const b=bases[0];
+  const bases=S.cbases.filter(b=>b.country===c.key&&b.on&&!b.carrier).sort((a,b)=>S.towers.filter(t=>t.base===a.key&&t.sold).length-S.towers.filter(t=>t.base===b.key&&t.sold).length||(a.hits-b.hits));const b=bases[0];
   const k=S.towers.filter(t=>t.base===b.key).length;const a=k*1.25+.3;tw.x=b.x+Math.cos(a)*(9+k);tw.y=b.y+Math.sin(a)*(9+k);tw.owner=c.key;tw.base=b.key;tw.sold=true;tw.tgt=null;if(tw.type==='beam')tw.dw=0;
-  S.payments.push({country:c.key,type:tw.type,per:o.per,left:o.n,total:o.price});S.stats.sold=(S.stats.sold||0)+1;S.offer=null;S.sellMode=null;closeOffer(true);boom(b.x,b.y,3,'#3c78ff');
-  banner(c.flag+' '+TW[tw.type].n+' נמכרה ל'+c.n+' · מוצבת ב'+b.n+' · ₪'+o.per+' × '+o.n+' בסוף הגלים הבאים');updateUI();saveGame();return true}
+  const price=salePrice(tw,c),per=Math.round(price/o.n);S.payments.push({country:c.key,type:tw.type,per,left:o.n,total:price});if(upSel===tw)closeUp();S.stats.sold=(S.stats.sold||0)+1;S.offer=null;S.sellMode=null;closeOffer(true);boom(b.x,b.y,3,'#3c78ff');
+  banner(c.flag+' '+TW[tw.type].n+' נמכרה ל'+c.n+' · מוצבת ב'+b.n+' · ₪'+per+' × '+o.n+' בסוף הגלים הבאים'+(upTotal(tw)?' (כולל שדרוגים)':''));updateUI();saveGame();return true}
+function salePrice(tw,c){return Math.round((TW[tw.type].cost+upSpent(tw))*c.mult)}
 function towerInfo(tw){const T=TW[tw.type],c=tw.owner?COAL(tw.owner):null,b=c?cbaseOf(tw):null,cap=b?capAt(b,effW()):1;
-  const pk=T.pk?Object.entries(T.pk).map(([k,v])=>TT[k].n+' '+Math.round(v*100)+'%').join(', '):Object.keys(T.dwell||{}).map(k=>TT[k].n).join(', ')+' (לייזר: יירוט ודאי אחרי זמן חימום)';
-  return (c?c.flag+' ':'')+T.n+(b?' · '+b.n+(cap<=0?' · מושבתת':cap<1?' · 50%':''):'')+' · טווח '+T.range+' ק״מ · סיכוי יירוט: '+pk+(c?'':' · '+(T.mag===Infinity?'₪1 לירייה':'₪'+T.shot+' ליירוט'))}
+  const pk=T.pk?Object.keys(T.pk).map(k=>TT[k].n+' '+Math.round(tPk(tw,k)*100)+'%').join(', '):Object.keys(T.dwell||{}).map(k=>TT[k].n).join(', ')+' (לייזר: יירוט ודאי אחרי זמן חימום)';
+  return (c?c.flag+' ':'')+T.n+(b?' · '+b.n+(cap<=0?' · מושבתת':cap<1?' · 50%':''):'')+' · טווח '+Math.round(tRange(tw))+' ק״מ · סיכוי יירוט: '+pk+(T.mag===Infinity?'':' · מחסנית '+tMag(tw)+' (טעינה '+tRefill(tw).toFixed(1)+' שנ׳)')+(upTotal(tw)?' · '+'★'.repeat(Math.min(4,upTotal(tw)))+(upTotal(tw)>4?upTotal(tw):''):'')+(c?'':' · '+(T.mag===Infinity?'₪1 לירייה':'₪'+T.shot+' ליירוט'))}
 function cbaseInfo(b){const c=COAL(b.country),cap=capAt(b,effW());return c.flag+' '+b.n+' ('+b.cn+') · '+(cap<=0?'נפגע: הסוללות מושבתות, 50% בגל '+(b.struck+2):cap<1?'בשיקום: הסוללות ב-50% (מלא בגל '+(b.struck+3)+')':'פעיל')+' · '+S.towers.filter(t=>t.base===b.key).map(t=>TW[t.type].n).join(', ')}
+
+// ---------- v5: upgrade panel (tap one of your batteries) ----------
+let upSel=null,upWasPaused=false;
+function upValue(tw,k,lv,nx){const save=tw.up;tw.up=Object.assign({range:0,rate:0,hit:0,mag:0},save||{});tw.up[k]=lv;const T=TW[tw.type];let v;
+  if(k==='range')v=Math.round(tRange(tw))+' ק״מ';
+  else if(k==='rate')v='ירי '+tReload(tw).toFixed(2)+' שנ׳'+(T.mag===Infinity?'':' · טעינה '+tRefill(tw).toFixed(1));
+  else if(k==='hit')v=T.pk?(nx?'עוד 5% לכל איום':Object.keys(T.pk).sort((a,b)=>T.pk[b]-T.pk[a]).slice(0,2).map(t=>TT[t].n+' '+Math.round(tPk(tw,t)*100)+'%').join(' · ')):'חימום '+Math.round((1-.15*lv)*100)+'%';
+  else v=tMag(tw)+' מיירטים';tw.up=save;return v}
+function upgrade(tw,k){if(!tw||tw.owner||!upTracks(tw).includes(k))return false;const l=upLv(tw,k);
+  if(l>=UPG_MAX){hint('המסלול הזה כבר ברמה המקסימלית',1500);return false}const c=upCost(tw,k);if(S.budget<c){hint('אין מספיק תקציב לשדרוג (₪'+c+')',1600);return false}
+  const oldMag=tMag(tw);S.budget-=c;tw.up=Object.assign({range:0,rate:0,hit:0,mag:0},tw.up||{});tw.up[k]=l+1;if(k==='mag'&&tw.ammo>0)tw.ammo+=tMag(tw)-oldMag;
+  S.stats.upgrades=(S.stats.upgrades||0)+1;boom(tw.x,tw.y,1.4,'#ffd84a');updateUI();renderUp();if(!S.inWave)saveGame();return true}
+function renderUp(){const el=$('upPanel');if(!el||!upSel)return;const tw=upSel,T=TW[tw.type];
+  let h='<div class="uphead"><b>'+T.n+'</b> '+(upTotal(tw)?'<span class="upstars">'+'★'.repeat(upTotal(tw))+'</span>':'')+'<button class="upx" data-upx="1" aria-label="סגור">✕</button></div>';
+  for(const k of upTracks(tw)){const l=upLv(tw,k),c=upCost(tw,k),max=l>=UPG_MAX;
+    h+='<div class="uprow"><span class="upn">'+UPG[k].ic+' '+(k==='hit'&&!T.pk?'זמן חימום':UPG[k].n)+'</span><span class="uppips">'+'●'.repeat(l)+'○'.repeat(UPG_MAX-l)+'</span>'+
+      '<span class="upv">'+upValue(tw,k,l)+(max?'':'<br><i>← '+upValue(tw,k,l+1,1)+'</i>')+'</span>'+
+      '<button class="upb'+(max?' max':S.budget<c?' poor':'')+'" data-up="'+k+'"'+(max?' disabled':'')+'>'+(max?'מקס׳':'₪'+c)+'</button></div>'}
+  const us=COAL('us');h+='<div class="upfoot">הושקע בשדרוגים: ₪'+upSpent(tw)+' · שווי במכירה לקואליציה: ₪'+salePrice(tw,us)+'</div>';el.innerHTML=h}
+function openUp(tw){if(!tw||tw.owner)return false;{const p=w2s(tw.x,tw.y);if(p.x<SW*.58){cam.tx=cam.x-(SW*.66-p.x)/cam.s;cam.ty=cam.y;cam.ts=cam.s;cam.anim=true}}if(!upSel){upWasPaused=S.paused;S.paused=true;$('btnPause').textContent='▶'}upSel=tw;selType=null;renderUp();const el=$('upPanel');if(el&&el.classList)el.classList.remove('hidden');updateUI();return true}
+function closeUp(){if(!upSel)return;upSel=null;const el=$('upPanel');if(el&&el.classList)el.classList.add('hidden');S.paused=upWasPaused;$('btnPause').textContent=S.paused?'▶':'❚❚'}
 
 // ---------- air force ----------
 function aliveBases(){return S.bases.filter(b=>b.active&&!b.dead)}
@@ -388,7 +438,7 @@ function draw(){
     if(cap<1){const t=cap<=0?(zoomed?'מושבת · 50% בגל '+(l.struck+2):'מושבת'):(zoomed?'בשיקום · 50% שיגורים':'בשיקום 50%');
       ctx.font='700 10px system-ui,sans-serif';ctx.fillStyle=cap<=0?'#ff9b7a':'#ffc46b';ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=3;const yy=zoomed?y:p.y+(l.ly<0?-15:16);ctx.strokeText(t,p.x,yy);ctx.fillText(t,p.x,yy)}}
   // tower ranges
-  for(const t of S.towers){const T=TW[t.type];const p=towerScreen(t);const r=T.range*cam.s;if(r>2000)continue;
+  for(const t of S.towers){const T=TW[t.type];const p=towerScreen(t);const r=tRange(t)*cam.s;if(r>2000)continue;
     ctx.strokeStyle=T.c;ctx.globalAlpha=selType===t.type?.55:t.owner?.1:.18;ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.x,p.y,r,0,6.283);ctx.stroke();ctx.globalAlpha=selType===t.type?.07:.03;ctx.fillStyle=T.c;ctx.fill();ctx.globalAlpha=1}
   // cities & air bases
   const far=cam.s<.42;
@@ -417,11 +467,12 @@ function draw(){
     if(!far||b.wake>0){ctx.font='600 '+(far?10:11)+'px system-ui,sans-serif';ctx.textAlign='left';ctx.fillStyle=b.dead?'#ff9a7a':on?'#9fe3ff':'rgba(190,205,220,.8)';ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=3;
       const t=b.n+(b.dead?' (הושמד)':on?' ✈':' · רדום');ctx.strokeText(t,p.x+11,p.y);ctx.fillText(t,p.x+11,p.y);ctx.textAlign='center'}}
   // v4: coalition bases (out / 50% / full like the launch sites)
-  for(const b of S.cbases){if(!(S.coal[b.country]||{}).joined)continue;const p=w2s(b.x,b.y),c=COAL(b.country),cap=capAt(b,ew);
+  for(const b of S.cbases){if(!cbOn(b))continue;const p=w2s(b.x,b.y),c=COAL(b.country),cap=capAt(b,ew);
     if(b.flash>0){b.flash=Math.max(0,b.flash-.02);ctx.strokeStyle='rgba(60,120,255,'+b.flash+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,10+(1-b.flash)*36,0,6.283);ctx.stroke()}
     ctx.save();ctx.translate(p.x,p.y);ctx.fillStyle=cap<=0?'rgba(70,60,55,.95)':'rgba(10,25,70,.95)';ctx.strokeStyle=cap<=0?'#ff8a5a':cap<1?'#ffb347':'#5d8cff';ctx.lineWidth=1.8;
     if(cap>=1){ctx.shadowColor='#3c78ff';ctx.shadowBlur=10}
-    if(b.ship){ctx.beginPath();ctx.moveTo(-10,-3);ctx.lineTo(10,-3);ctx.lineTo(7,4);ctx.lineTo(-7,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#cfe0ff';ctx.fillRect(-2,-7,4,4)}
+    if(b.carrier){ctx.beginPath();ctx.moveTo(-15,-4);ctx.lineTo(13,-4);ctx.lineTo(16,0);ctx.lineTo(13,4);ctx.lineTo(-13,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.strokeStyle='#cfe0ff';ctx.lineWidth=1;ctx.setLineDash([3,2]);ctx.beginPath();ctx.moveTo(-11,0);ctx.lineTo(11,0);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#cfe0ff';ctx.fillRect(5,-8,4,4)}
+    else if(b.ship){ctx.beginPath();ctx.moveTo(-10,-3);ctx.lineTo(10,-3);ctx.lineTo(7,4);ctx.lineTo(-7,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#cfe0ff';ctx.fillRect(-2,-7,4,4)}
     else{ctx.beginPath();ctx.rect(-8,-8,16,16);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='bold 10px system-ui';ctx.fillText('★',0,.5)}
     ctx.shadowBlur=0;if(cap<=0){ctx.strokeStyle='#ff8a5a';ctx.beginPath();ctx.moveTo(-6,-6);ctx.lineTo(6,6);ctx.moveTo(6,-6);ctx.lineTo(-6,6);ctx.stroke()}ctx.restore();
     {ctx.font='600 '+(far?10:11)+'px system-ui,sans-serif';ctx.fillStyle=cap<=0?'#ff9a7a':cap<1?'#ffc46b':'#b8ccff';ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=3;
@@ -433,7 +484,10 @@ function draw(){
     ctx.fillStyle=T.c;ctx.font='bold 9px system-ui,sans-serif';ctx.fillText(TWL[t.type]||'?',p.x,p.y+.5);if(t.owner){ctx.fillStyle='#3c78ff';ctx.beginPath();ctx.arc(p.x+7,p.y-7,3,0,6.283);ctx.fill()}
     if(S.sellMode&&!t.owner&&t.type===S.sellMode.type){const pu=.5+.5*Math.sin(S.time*7);ctx.strokeStyle='rgba(255,224,80,'+(.5+.5*pu)+')';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,13+pu*4,0,6.283);ctx.stroke()}
     if(t.flash>0){ctx.globalAlpha=t.flash/.35;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,9+(.35-t.flash)*40,0,6.283);ctx.stroke();ctx.globalAlpha=1}
-    if(T.mag!==Infinity){const f=t.ammo>0?t.ammo/T.mag:t.refT/T.refill;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(p.x-9,p.y+10,18,3);ctx.fillStyle=t.ammo>0?T.c:'#ff8a50';ctx.fillRect(p.x-9,p.y+10,18*f,3)}
+    if(T.mag!==Infinity){const f=t.ammo>0?t.ammo/tMag(t):t.refT/tRefill(t);ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(p.x-10,p.y-14,20,4);ctx.fillStyle=t.ammo>0?(f<.25?'#ffd04a':T.c):'#ff8a50';ctx.fillRect(p.x-10,p.y-14,20*f,4);
+      if(t.ammo<=0){ctx.font='700 10px system-ui,sans-serif';ctx.fillStyle='#ffb070';ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=3;ctx.strokeText('טוען…',p.x,p.y-21);ctx.fillText('טוען…',p.x,p.y-21)}}
+    {const n=upTotal(t);if(n){ctx.font='700 9px system-ui,sans-serif';ctx.fillStyle='#ffd84a';ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=2.5;const st=n<=4?'★'.repeat(n):'★'+n;ctx.strokeText(st,p.x,p.y+14);ctx.fillText(st,p.x,p.y+14)}}
+    if(upSel===t){ctx.strokeStyle='#ffe066';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.arc(p.x,p.y,14,0,6.283);ctx.stroke();ctx.setLineDash([])}
     if(t.tgt){const q=w2s(t.tgt.x,t.tgt.y);const o=altOff(t.tgt.alt);ctx.globalCompositeOperation='lighter';ctx.strokeStyle='rgba(93,255,154,.35)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y-o);ctx.stroke();ctx.strokeStyle='#eafff1';ctx.lineWidth=1.3;ctx.stroke();ctx.globalCompositeOperation='source-over'}}
   ctx.globalCompositeOperation='lighter';
   // threats
@@ -518,16 +572,17 @@ function recordBest(){const all=lsGet(BEST_KEY)||{};const cur=all[S.diff]||{wave
   if(S.wave>cur.wave){cur.wave=S.wave;rec=true}if(S.score>cur.score){cur.score=S.score;rec=true}all[S.diff]=cur;lsSet(BEST_KEY,all);return rec}
 function saveGame(){if(S.over||S.inWave)return false;return lsSet(SAVE_KEY,{v:3,diff:S.diff,wave:S.wave,budget:Math.floor(S.budget),score:S.score,stats:S.stats,at:Date.now(),
   cities:S.cities.map(c=>[c.hp,c.dead?1:0]),bases:S.bases.map(b=>[b.hp,b.dead?1:0,b.active?1:0]),launchers:S.launchers.map(l=>l.struck),sams:S.sams.map(x=>x.alive?1:0),
-  towers:S.towers.map(t=>[t.type,Math.round(t.x*10)/10,Math.round(t.y*10)/10,t.owner||0,t.base||0,t.sold?1:0]),coal:S.coal,payments:S.payments,offer:S.offer,cbases:S.cbases.map(b=>[b.key,b.struck,b.hits]),jets:S.jets.filter(j=>j.alive).map(j=>[j.type,S.bases.indexOf(j.base)])})}
+  towers:S.towers.map(t=>[t.type,Math.round(t.x*10)/10,Math.round(t.y*10)/10,t.owner||0,t.base||0,t.sold?1:0,t.up?Object.keys(UPG).map(k=>upLv(t,k)):0]),coal:S.coal,payments:S.payments,offer:S.offer,cbases:S.cbases.map(b=>[b.key,b.struck,b.hits,b.on?1:0]),jets:S.jets.filter(j=>j.alive).map(j=>[j.type,S.bases.indexOf(j.base)])})}
 function loadGame(){const v=lsGet(SAVE_KEY);if(!v||v.v!==3||!DIFF[v.diff])return false;diff=v.diff;S=newState(v.diff);S.started=true;
   S.wave=v.wave;S.budget=v.budget;S.score=v.score||0;Object.assign(S.stats,v.stats||{});
   (v.cities||[]).forEach((c,i)=>{if(S.cities[i]){S.cities[i].hp=c[0];S.cities[i].dead=!!c[1]}});
   (v.bases||[]).forEach((b,i)=>{if(S.bases[i]){S.bases[i].hp=b[0];S.bases[i].dead=!!b[1];S.bases[i].active=!!b[2]}});
   (v.launchers||[]).forEach((st,i)=>{if(S.launchers[i])S.launchers[i].struck=st});(v.sams||[]).forEach((a,i)=>{if(S.sams[i])S.sams[i].alive=!!a});
-  for(const t of v.towers||[])if(TW[t[0]]){const tw={type:t[0],x:t[1],y:t[2],ammo:TW[t[0]].mag,cd:0,refT:0,tgt:null,dw:0};if(t[3]){tw.owner=t[3];tw.base=t[4];tw.sold=!!t[5]}S.towers.push(tw)}
+  for(const t of v.towers||[])if(TW[t[0]]){const tw={type:t[0],x:t[1],y:t[2],ammo:TW[t[0]].mag,cd:0,refT:0,tgt:null,dw:0};if(t[3]){tw.owner=t[3];tw.base=t[4];tw.sold=!!t[5]}if(Array.isArray(t[6])){tw.up={};Object.keys(UPG).forEach((k,i)=>tw.up[k]=Math.max(0,Math.min(UPG_MAX,t[6][i]|0)));tw.ammo=tMag(tw)}S.towers.push(tw)}
   // v4 fields (absent in older saves: the coalition simply joins when its wave comes)
-  if(v.coal)S.coal=v.coal;if(Array.isArray(v.payments))S.payments=v.payments;for(const r of v.cbases||[]){const b=S.cbases.find(x=>x.key===r[0]);if(b){b.struck=r[1];b.hits=r[2]||0}}
-  for(const c of COALITION)if((S.coal[c.key]||{}).joined&&!S.towers.some(t=>t.owner===c.key&&!t.sold)){S.coal[c.key].joined=false;coalitionJoin()}
+  if(v.coal)S.coal=v.coal;if(Array.isArray(v.payments))S.payments=v.payments;for(const r of v.cbases||[]){const b=S.cbases.find(x=>x.key===r[0]);if(b){b.struck=r[1];b.hits=r[2]||0;if(r[3])b.on=true}}
+  // older saves: a joined country's bases are on where its batteries stand; bases added since (v5) open now if their wave has come
+  for(const b of S.cbases)if((S.coal[b.country]||{}).joined&&(b.on||S.towers.some(t=>t.base===b.key&&!t.sold)||S.wave>=b.join)){b.on=false;activateBase(b)}
   if(v.offer&&COAL(v.offer.country)){S.offer=v.offer;setTimeout(showOffer,600)}
   for(const j of v.jets||[]){const b=S.bases[j[1]];const base=b&&b.active&&!b.dead?b:aliveBases()[0];if(!base||!JT[j[0]])continue;
     S.jets.push({id:++S.jetSeq,type:j[0],base,x:base.x,y:base.y,h:-Math.PI/4,ammo:JT[j[0]].ammo,state:'patrol',px:P(37.6,32.2).x+rnd(-40,40),py:P(37.6,32.2).y+rnd(-40,40),orb:rnd(0,6),tgt:null,cd:0,trail:[],alive:true,rearmT:0,detected:0})}
@@ -539,7 +594,7 @@ function openIntro(mode){introMode=mode;const st=mode==='start';$('diffRow').cla
   $('btnStart').textContent=st?'משחק חדש ▶':'המשך ▶';$('bestLine').textContent=bestLine();
   document.querySelectorAll('.dbtn').forEach(b=>{b.classList.toggle('sel',b.dataset.d===diff);b.setAttribute('aria-checked',b.dataset.d===diff?'true':'false')});
   $('intro').classList.remove('hidden')}
-function resetUI(){selType=null;selJet=null;$('over').classList.add('hidden');$('pAir').classList.add('hidden');$('pDefense').classList.remove('hidden');S.paused=false;$('btnPause').textContent='❚❚';$('btnPause').classList.remove('on');renderJets();updateUI()}
+function resetUI(){selType=null;selJet=null;upSel=null;{const u=$('upPanel');if(u&&u.classList)u.classList.add('hidden')}$('over').classList.add('hidden');$('pAir').classList.add('hidden');$('pDefense').classList.remove('hidden');S.paused=false;$('btnPause').textContent='❚❚';$('btnPause').classList.remove('on');renderJets();updateUI()}
 
 // ---------- input ----------
 const ptrs=new Map();let drag=null,pinch=null;
@@ -555,8 +610,9 @@ function endPtr(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);
   if(drag&&!drag.moved&&ptrs.size===0)tap(e.clientX,e.clientY);if(ptrs.size<2)pinch=null;if(ptrs.size===0)drag=null}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drag=null;pinch=null});
 cv.addEventListener('wheel',e=>{e.preventDefault();const w=s2w(e.clientX,e.clientY);cam.s*=Math.exp(-e.deltaY*.0015);cam.anim=false;clampCam();cam.x=w.x-(e.clientX-SW/2)/cam.s;cam.y=w.y-(e.clientY-SH/2)/cam.s;clampCam();mapDirty=true},{passive:false});
-function tap(sx,sy){if(S.over)return;const p=s2w(sx,sy);
+function tap(sx,sy){if(S.over)return;const p=s2w(sx,sy);if(upSel){const o=S.towers.find(t=>!t.owner&&dist(t,p)<16/cam.s);if(o&&o!==upSel){upSel=o;renderUp()}else closeUp();return}
   if(S.sellMode){const tw=S.towers.filter(t=>!t.owner&&t.type===S.sellMode.type).sort((a,b)=>dist(a,p)-dist(b,p))[0];if(tw&&dist(tw,p)<26/cam.s){sellTower(tw)}else hint('הקישו על סוללת '+TW[S.sellMode.type].n+' שלכם (מסומנות בצהוב) כדי למכור אותה',2500);return}
+  {const own=S.towers.find(t=>!t.owner&&dist(t,p)<16/cam.s);if(own){openUp(own);return}}
   if(selType){ghost=p;if(placeTower(selType,p)){if(S.budget<TW[selType].cost){selType=null}updateUI()}return}
   // tap a jet on map?
   const tol=22/cam.s;const hit=S.jets.find(j=>j.alive&&dist(j,p)<tol);
@@ -564,7 +620,7 @@ function tap(sx,sy){if(S.over)return;const p=s2w(sx,sy);
   if(selJet){assignJet(S.jets.find(j=>j.id===selJet),p);return}
   // tap a tower → info
   const tw=S.towers.find(t=>dist(t,p)<16/cam.s);if(tw){hint(towerInfo(tw),4000);return}
-  const cb=S.cbases.find(b=>dist(b,p)<18/cam.s&&(S.coal[b.country]||{}).joined);if(cb){hint(cbaseInfo(cb),3500);return}
+  const cb=S.cbases.find(b=>dist(b,p)<18/cam.s&&cbOn(b));if(cb){hint(cbaseInfo(cb),3500);return}
   const l=S.launchers.find(l=>dist(l,p)<20/cam.s);if(l){hint(launcherInfo(l)+(S.wave>=AIR_WAVE?' · בחרו מטוס כדי לתקוף':''),3000)}}
 function launcherInfo(l){const c=capAt(l,effW());return 'אתר '+LTYPES[l.kind].n+': '+l.n+' · '+(c<=0?'מושבת (חוזר ל-50% בגל '+(l.struck+2)+')':c<1?'בשיקום, 50% מהשיגורים (מלא בגל '+(l.struck+3)+')':'פעיל')}
 
@@ -585,6 +641,7 @@ function openTransfer(){if(!window.TRANSFER||!S)return false;const was=S.paused;
     onClose:()=>{S.paused=was;$('btnPause').textContent=S.paused?'▶':'❚❚';updateUI();if(!S.inWave)saveGame()},
     onDone:(n,d)=>{if(n)hint(d==='out'?'₪'+n+' הועברו לקופה המשותפת':'₪'+n+' מהקופה נכנסו לתקציב',2200)}})}
 $('btnXfer').onclick=openTransfer;
+$('upPanel').onclick=e=>{const t=e.target&&e.target.closest?e.target.closest('[data-up],[data-upx]'):null;if(!t)return;if(t.dataset.upx){closeUp();return}if(upSel)upgrade(upSel,t.dataset.up)};
 $('offerYes').onclick=()=>{if(acceptOffer())hint('הקישו על הסוללה שתרצו למכור (מסומנות בצהוב)',3500)};$('offerNo').onclick=()=>closeOffer(false);$('sellCancel').onclick=()=>closeOffer(false);
 $('btnHelp').onclick=()=>{if(S.started&&!S.over){S.paused=true;$('btnPause').textContent='▶';openIntro('help')}else openIntro('start')};
 document.querySelectorAll('.dbtn').forEach(b=>b.addEventListener('click',()=>{diff=b.dataset.d;openIntro('start')}));
@@ -613,6 +670,6 @@ S=newState();resize();camTo('theater',true);updateUI();openIntro('start');reques
 window.GAME={get S(){return S},P,w2s,placeTower:(t,lon,lat)=>placeTower(t,P(lon,lat)),startWave,buyJet,assignJet:(id,lon,lat)=>assignJet(S.jets.find(j=>j.id===id),P(lon,lat)),camTo,
   strike:(id,launcherName)=>{const j=S.jets.find(j=>j.id===id),l=S.launchers.find(l=>l.n===launcherName);if(j&&l){j.state='strike';j.tgt={kind:'launch',o:l};renderJets()}},
   strikeSam:(id,i)=>{const j=S.jets.find(j=>j.id===id);if(j){j.state='strike';j.tgt={kind:'sam',o:S.sams[i]};renderJets()}},
-  TW,TT,LTYPES,DIFF,capAt,effW:()=>effW(),launcherInfo,saveGame,loadGame,recordBest,bestFor,newGame,continueGame,openIntro,setDiff:d=>{diff=d},inIsrael:(lon,lat)=>inIsrael(P(lon,lat)),canPlace:(lon,lat)=>canPlace(P(lon,lat)),launcher:n=>S.launchers.find(l=>l.n===n),buildWave:n=>buildWave(n),bases:()=>S.bases,setBonus:(a,b)=>{BONUS0=a;BONUSW=b},WAVES,hitTarget:(c)=>hitTarget(c),step:(sec)=>{const n=Math.round(sec*60);for(let i=0;i<n;i++)update(1/60)},closeIntro:()=>$('btnStart').click(),openAir:()=>$('btnAir').click(),selectType,select:(id)=>{selJet=id;renderJets()},openTransfer,endWave:()=>endWave(),COALITION,coalition:{offer:()=>S.offer,accept:acceptOffer,decline:()=>closeOffer(false),sell:tw=>sellTower(tw),makeOffer:()=>{for(const c of COALITION)if(S.coal[c.key])S.coal[c.key].lastOffer=-1;return coalitionOffer()},join:coalitionJoin,cbaseOf,payments:()=>S.payments,towerInfo,cbaseInfo},
+  TW,TT,LTYPES,DIFF,capAt,effW:()=>effW(),launcherInfo,saveGame,loadGame,recordBest,bestFor,newGame,continueGame,openIntro,setDiff:d=>{diff=d},inIsrael:(lon,lat)=>inIsrael(P(lon,lat)),canPlace:(lon,lat)=>canPlace(P(lon,lat)),launcher:n=>S.launchers.find(l=>l.n===n),buildWave:n=>buildWave(n),bases:()=>S.bases,setBonus:(a,b)=>{BONUS0=a;BONUSW=b},WAVES,hitTarget:(c)=>hitTarget(c),step:(sec)=>{const n=Math.round(sec*60);for(let i=0;i<n;i++)update(1/60)},closeIntro:()=>$('btnStart').click(),UPG,upgrade,openUp,closeUp,upSel:()=>upSel,upCost,upSpent,upTotal,salePrice,eff:{range:tRange,reload:tReload,refill:tRefill,mag:tMag,pk:tPk,dwell:tDwell},renderUp,openAir:()=>$('btnAir').click(),selectType,select:(id)=>{selJet=id;renderJets()},openTransfer,endWave:()=>endWave(),COALITION,coalition:{offer:()=>S.offer,accept:acceptOffer,decline:()=>closeOffer(false),sell:tw=>sellTower(tw),makeOffer:()=>{for(const c of COALITION)if(S.coal[c.key])S.coal[c.key].lastOffer=-1;return coalitionOffer()},join:coalitionJoin,cbaseOf,payments:()=>S.payments,towerInfo,cbaseInfo},
   threat:(type,sx,sy,tx,ty,city)=>{const th={type,sx,sy,tx,ty,city:city||S.cities[0],s:0,alt:0,x:sx,y:sy,vx:0,vy:0,eng:0,trail:[],wob:0,dead:false,from:-1};th.len=Math.hypot(tx-sx,ty-sy);th.spd=TT[type].spd;S.threats.push(th);return th},update:dt=>update(dt)};
 })();

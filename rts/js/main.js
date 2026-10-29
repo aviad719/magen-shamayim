@@ -5,6 +5,23 @@ var aim=null,KEY='lebanonFront.save.v1',s=Sim.make(20261027,'normal'),selected=n
 var storage={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');noticeT=performance.now()+2800}
 function save(){if(!s||s.lost)return;storage.set(KEY,Sim.save(s))}
+// v5: every order goes through run(): executed now, or queued while "⚔ תיאום התקפה" is on (shown as dashed lines until "✓ בצע").
+var ORD_N={move:'תנועה',attack:'תקיפה',blow:'פיצוץ',deploy:'פריסה',fire:'🔥 אש',smoke:'🌫 עשן',drop:'🪂 הצנחה',supply:'📦 אספקה',route:'✈ נתיב',pack:'קיפול',hold:'החזק',sweep:'🔍 סריקה',load:'העלאה',unload:'הורדה',build:'בנייה'};
+function run(o){var r=Sim.order(s,o);if(r&&r.queued){toast('📝 '+ORD_N[o.kind]+' נשמרה לתיאום ('+r.queued+' פקודות) · ״✓ בצע״ מוציא את כולן יחד');updateCoord()}return r}
+function queued(r){return !!(r&&r.queued)}
+function updateCoord(){var on=!!s.coord,b=$('coordBar');document.body.classList.toggle('coord',on);if(b)b.classList.toggle('hidden',!on);var btn=$('coordBtn');if(btn)btn.classList.toggle('active',on);
+ if(on){var n=s.coord.orders.length;$('coordInfo').textContent='⚔ מצב תיאום התקפה · '+(n?n+' פקודות ממתינות':'תנו פקודות: הן נשמרות ולא מתבצעות');$('coordGo').disabled=!n}}
+function coordToggle(){if(s.coord){toast('כבר במצב תיאום · ״✓ בצע״ או ״✖ בטל״');return}if(mode==='route')endRoute(false);if(mode==='aim')endAim();Sim.coordStart(s);updateCoord();toast('⚔ תיאום התקפה: כל פקודה נשמרת כקו מקווקו. ״✓ בצע״ מוציא את כולן בבת אחת')}
+function coordGo(){if(mode==='aim')endAim();if(mode==='route')endRoute(false);var n=s.coord?s.coord.orders.length:0;Sim.coordExec(s);updateCoord();toast(n?'⚔ בצע! '+n+' פקודות יצאו בבת אחת':'אין פקודות ממתינות');updateUI()}
+function coordCancel(){if(mode==='aim')endAim();if(mode==='route')endRoute(false);var n=Sim.coordCancel(s);updateCoord();toast(n?'✖ '+n+' הפקודות שניתנו בתיאום בוטלו':'יצאתם ממצב תיאום');updateUI()}
+// v5: control groups 1-4: long press stores the selection, tap selects, double tap also centres the camera
+var cgTap={n:0,t:0},cgPress=null;
+function cgSave(n){var ids=selectedUnits().filter(u=>!D.UNITS[u.type].building).map(u=>u.id);if(!ids.length){toast('בחרו יחידות ואז לחיצה ארוכה על '+n+' כדי לשמור קבוצה');return 0}var k=Sim.setCtrlGroup(s,n,ids);toast('קבוצה '+n+' נשמרה ('+k+' יחידות)');updateGroups();return k}
+function cgSelect(n,center){var ids=Sim.ctrlGroup(s,n);if(!ids.length){toast('קבוצה '+n+' ריקה · בחרו יחידות ולחיצה ארוכה על '+n);return 0}selected=new Set(ids);
+ if(center){var us=ids.map(id=>Sim.get(s,id)).filter(Boolean),cx=us.reduce((a,u)=>a+u.x,0)/us.length,cy=us.reduce((a,u)=>a+u.y,0)/us.length;ren.camera(cx,cy)}
+ flashFocus('קבוצה '+n+' · '+ids.length+' יחידות'+(center?' · המצלמה עליה':''));updateUI();return ids.length}
+function cgTapped(n){var now=performance.now();var dbl=cgTap.n===n&&now-cgTap.t<D.CTRL.doubleTap;cgTap={n,t:dbl?0:now};return cgSelect(n,dbl)}
+function updateGroups(){for(var n=1;n<=D.CTRL.groups;n++){var b=$('cg'+n);if(!b)continue;var k=Sim.ctrlGroup(s,n).length;b.classList.toggle('has',k>0);var sm=b.querySelector('small');if(sm)sm.textContent=k?k:''}}
 function sharedBudget(){return typeof SHARED==='undefined'?0:SHARED.budget()}
 // v4: no automatic take of the war budget. Money moves only through the "⇄ קופה" transfer dialog (both directions).
 var xferWas=false;function openTransfer(){if(typeof TRANSFER==='undefined'||typeof SHARED==='undefined')return false;xferWas=s.paused;s.paused=true;
@@ -13,7 +30,7 @@ var xferWas=false;function openTransfer(){if(typeof TRANSFER==='undefined'||type
 function updateIntro(){var saved=Sim.restore(storage.get(KEY));$('continueGame').classList.toggle('hidden',!saved||saved.lost||saved.won);$('sharedLine').textContent='קופה משותפת עם מגן שמיים: ₪'+sharedBudget().toLocaleString('he-IL')+' · מעבירים כסף בכפתור ״⇄ קופה״ למעלה, לשני הכיוונים';document.querySelectorAll('.diff button').forEach(b=>b.classList.toggle('active',b.dataset.diff===diff))}
 function begin(continueIt){if(continueIt){s=Sim.restore(storage.get(KEY));if(!s)return;toast('המשחק נשמר — ממשיכים מהנקודה שבה עצרתם')}else{s=Sim.make((Date.now()&0xffffffff)>>>0,diff);storage.set(KEY,Sim.save(s))}
  s.paused=false;selected.clear();modal=false;$('intro').classList.add('hidden');$('end').classList.add('hidden');ren.camera(s.units.find(u=>u.id===s.hq).x+1,s.units.find(u=>u.id===s.hq).y-3,22);
- lastL=-1;save();insets();updateUI()}
+ lastL=-1;save();insets();updateCoord();updateUI()}
 function finish(){lastL=-1;updateLaunchers();modal=true;s.paused=true;save();$('endTitle').textContent=s.won?'ביירות נכבשה! 🎉':'בסיס הפיקוד נפל';$('endDetail').textContent='כבשת '+s.captures+' יעדים · חיסלת '+s.kills+' יחידות · תקציב נותר ₪'+Math.floor(s.money)+'. '+(s.won?'חזית לבנון הוכרעה. חזיתות סוריה, עיראק ואיראן בהמשך.':'אפשר לנסות מחדש ולשנות אסטרטגיה.');$('end').classList.remove('hidden');if(s.won&&typeof SHARED!=='undefined')SHARED.winFront('lebanon')}
 function selectedUnits(){return [...selected].map(id=>Sim.get(s,id)).filter(u=>u&&u.side==='il'&&!u.carriedBy)}
 function updateTicker(){var t=$('ticker');if(!t)return;t.innerHTML=s.messages.slice(0,2).map((m,i)=>'<div'+(i?' class="old"':'')+'>'+m.replace(/</g,'&lt;')+'</div>').join('')}
@@ -28,17 +45,22 @@ function updateUI(){updateTicker();var pl=$('pool');if(pl)pl.textContent='₪'+s
  var list=D.BUILD[tab];$('units').innerHTML=list.map(t=>{var u=D.UNITS[t],q=s.queue[u.q],max=D.QUEUE_MAX[u.q],blocked=s.money<u.cost||q.length>=max;return '<button data-buy="'+t+'" '+(blocked?'disabled':'')+' title="'+u.desc+'"><span>'+u.n+(u.soldiers?' <small>×8</small>':'')+'</span><span class="cost">₪'+u.cost+'</span></button>'}).join('')+(tab==='air'?'<button class="support" data-support="supplydrop" '+(s.money<D.SUPPLY_DROP.cost?'disabled':'')+' title="'+D.SUPPLY_DROP.desc+'"><span>📦 '+D.SUPPLY_DROP.n+'</span><span class="cost">₪'+D.SUPPLY_DROP.cost+'</span></button>':'');
  $('queue').textContent=Object.values(s.queue).flat().map(q=>D.UNITS[q.type].n+' '+Math.ceil(q.remaining)+'ש׳').join(' · ')||'בחרו יחידה לבנייה';
  $('group').disabled=units.length<2;$('split').disabled=!units.some(u=>u.soldiers>=2)&&units.length<2;
- $('unload').disabled=!units.some(u=>u.cargo.length);$('load').disabled=!units.some(u=>u.soldiers>0);$('build').disabled=!units.some(u=>u.type==='engineer')||s.money<D.UNITS.post.cost;$('blow').disabled=!units.some(u=>u.type==='engineer');$('route').disabled=!units.some(u=>Sim.canPatrol(u));updateActions(units);v4Buttons(units);if(mode==='aim'&&aim&&aim.action!=='supply'&&!aim.ids.some(id=>selected.has(id)))endAim();$('route').classList.toggle('active',mode==='route');if(mode==='route'&&!units.some(u=>Sim.canPatrol(u)))endRoute(false);
+ $('unload').disabled=!units.some(u=>u.cargo.length);$('load').disabled=!units.some(u=>u.soldiers>0);$('build').disabled=!units.some(u=>u.type==='engineer')||s.money<D.UNITS.post.cost;$('blow').disabled=!units.some(u=>u.type==='engineer');$('route').disabled=!units.some(u=>Sim.canPatrol(u));updateActions(units);v4Buttons(units);updateGroups();updateCoord();if(mode==='aim'&&aim&&aim.action!=='supply'&&!aim.ids.some(id=>selected.has(id)))endAim();$('route').classList.toggle('active',mode==='route');if(mode==='route'&&!units.some(u=>Sim.canPatrol(u)))endRoute(false);
 }
 
 // v4: the order grid shows only the buttons that fit the selected unit types (union for a mixed selection)
 var ACTIONS=['stop','group','split','load','unload','build','blow','route','drop','deploy','fire','smoke','pack','sweep'];
 function updateActions(units){var a=Sim.actionsFor(units);for(var id of ACTIONS){var b=$(id);if(b)b.classList.toggle('hidden',!a.has(id))}
  var types=[...new Set(units.map(u=>u.type))];$('attackInfo').textContent=types.length===1?Sim.attacksText(types[0]):types.length>1&&types.length<=2?types.map(t=>D.UNITS[t].n+': '+Sim.attacksText(t).replace('🎯 ','')).join(' | '):''}
-// warn when an attack order includes units that cannot damage the target (e.g. a recon UAV vs infantry)
-function warnAttack(sel,target){if(!target)return false;if(sel.some(u=>D.UNITS[u.type].barrage)){toast('💥 תותחנים יורים רק בפקודת ״🔥 אש״ כשהם פרוסים, לא בטאפ על אויב');return true}var tsp=D.UNITS[target.type],cant=sel.filter(u=>!Sim.canDamage(u.type,target.type));if(!cant.length)return false;
- var names=[...new Set(cant.map(u=>D.UNITS[u.type].n))].join(', '),first=cant[0].type,what=Sim.attacksText(first).replace(/^🎯 (תוקף: )?/,'').split(' · ')[0];
- toast('⚠ '+names+' לא יכול'+(cant.length>1?'ים':'')+' לפגוע ב'+tsp.n+(cant.length===sel.length?' · '+D.UNITS[first].n+' תוקף רק: '+what:' · השאר תוקפים'));return true}
+// v5 (B6): an attack order: units that cannot damage the target get a warning and stay put; a deployed battery in range fires at the enemy.
+function attackPlan(sel,target){var tsp=D.UNITS[target.type],ok=[],cant=[],arty=[];for(var u of sel){if(D.UNITS[u.type].barrage)arty.push(u);else if(Sim.canDamage(u.type,target.type))ok.push(u);else cant.push(u)}
+ var warn='';if(cant.length){var names=[...new Set(cant.map(u=>D.UNITS[u.type].n))].join(', '),first=cant[0].type,what=Sim.attacksText(first).replace(/^🎯 (תוקף: )?/,'').split(' · ')[0];
+  warn='⚠ '+names+' לא יכול'+(cant.length>1?'ים':'')+' לפגוע ב'+tsp.n+' ולכן לא יוצא'+(cant.length>1?'ים':'')+' · '+D.UNITS[first].n+' תוקף רק: '+what}
+ return {ok,cant,arty:arty.filter(u=>(u.art&&u.art.st)==='deployed'),allArty:arty,warn}}
+function attackText(sel,target,r,plan){var parts=[];if(r.n)parts.push(r.n+' יחידות קיבלו פקודה לתקוף');
+ if(r.fired)parts.push('🔥 התותחנים יורים על '+D.UNITS[target.type].n+' · '+AR.fire.warn+' שניות עד הפגיעה');
+ else if(r.arty)parts.push({range:'💥 המטרה מחוץ לטווח התותחנים',tooClose:'💥 המטרה קרובה מדי לתותחנים',cooldown:'💥 האש של התותחנים בטעינה',ammo:'💥 לתותחנים אין תחמושת',notDeployed:'💥 תותחנים יורים רק כשהם פרוסים (״פריסה״)'}[r.artyReason]||'💥 התותחנים לא יכולים לירות לשם');
+ if(plan.warn)parts.push(plan.warn);return parts.join(' · ')||'אין יחידה שיכולה לתקוף את המטרה'}
 
 // ===== v4 stage 2: artillery / paratroopers / supply drop / Golani sweep controls =====
 var AR=D.ARTY;
@@ -64,6 +86,9 @@ function startAim(action){if(mode==='route')endRoute(false);var ids=[];
  aim={action,ids};mode='aim';document.body.classList.add('aiming');$('aimBar').classList.remove('hidden');$('aimInfo').textContent=AIM_TEXT[action];$('aimHere').classList.toggle('hidden',action!=='deploy');updateUI();return true}
 function endAim(){aim=null;if(mode==='aim')mode='pan';document.body.classList.remove('aiming');$('aimBar').classList.add('hidden');updateUI()}
 function aimAt(w){var a=aim;if(!a)return;var p={x:w.x,y:w.y};
+ if(s.coord){if((a.action==='fire'||a.action==='smoke')&&!a.ids.some(id=>{var u=Sim.get(s,id);return u&&Sim.inArtyRange(u,p)})){toast('הנקודה מחוץ לטווח הסוללה (העיגול המקווקו)');return}
+  if(a.action==='supply'&&s.money<D.SUPPLY_DROP.cost){toast('אין מספיק תקציב');endAim();return}
+  run({kind:a.action,ids:a.ids,p});endAim();return}
  if(a.action==='deploy'){var n=Sim.deployOrder(s,a.ids,p);toast(n?'התותחנים בדרך לפריסה · עוד '+AR.deploy+' שניות פריסה במקום':'אין סוללה פנויה לפריסה');endAim();return}
  if(a.action==='fire'||a.action==='smoke'){var r=Sim.artyFire(s,a.ids,p,a.action);if(r.n){toast(a.action==='fire'?'🔥 מטח בדרך · '+AR.fire.warn+' שניות עד הפגיעה. כוחות שלנו בעיגול האדום ייפגעו בחצי עוצמה':'🌫 פגזי עשן בדרך · האויב לא יראה את הכוחות בתוך הענן '+AR.smoke.dur+' שניות');endAim();return}
   toast({range:'הנקודה מחוץ לטווח הסוללה (העיגול המקווקו)',tooClose:'קרוב מדי לסוללה',cooldown:'בטעינה',ammo:'אין מספיק תחמושת לסוללה (משאית אספקה / בסיס)',notDeployed:'הסוללה לא פרוסה'}[r.reason]||'אי אפשר לירות לשם');return}
@@ -72,7 +97,7 @@ function aimAt(w){var a=aim;if(!a)return;var p={x:w.x,y:w.y};
 function patrollers(){return selectedUnits().filter(u=>Sim.canPatrol(u))}
 function setRouteUI(){document.body.classList.toggle('routing',mode==='route');$('routeBar').classList.toggle('hidden',mode!=='route');if(mode==='route'){var n=draft.length;$('routeInfo').textContent=n?'נקודות נתיב: '+n+' · עוד טאפ מוסיף נקודה':'טאפ על המפה להוספת נקודות נתיב';$('routeDone').disabled=!n;$('routeUndo').disabled=!n}}
 function startRoute(){if(!patrollers().length){toast('בחרו מל״ט סיור, מל״ט תקיפה או מסוק כדי להגדיר נתיב');return}mode='route';draft=[];setRouteUI();toast('טאפ על כמה נקודות במפה, ואז ״✓ סיים נתיב״')}
-function endRoute(apply){var n=0;if(apply&&draft&&draft.length)n=Sim.setRoute(s,patrollers().map(u=>u.id),draft);mode='pan';var pts=draft?draft.length:0;draft=null;setRouteUI();if(apply)toast(n?n+' כלי טיס מסיירים בנתיב של '+pts+' נקודות · תוקפים אויב בטווח וחוזרים לבד לתדלוק':'אין כלי טיס זמין לנתיב (אולי בדרך לתדלוק)');updateUI()}
+function endRoute(apply){var n=0;if(apply&&draft&&draft.length&&s.coord){run({kind:'route',ids:patrollers().map(u=>u.id),points:draft.slice()});mode='pan';draft=null;setRouteUI();updateUI();return}if(apply&&draft&&draft.length)n=Sim.setRoute(s,patrollers().map(u=>u.id),draft);mode='pan';var pts=draft?draft.length:0;draft=null;setRouteUI();if(apply)toast(n?n+' כלי טיס מסיירים בנתיב של '+pts+' נקודות · תוקפים אויב בטווח וחוזרים לבד לתדלוק':'אין כלי טיס זמין לנתיב (אולי בדרך לתדלוק)');updateUI()}
 function flashFocus(t){$('focus').textContent=t;$('focus').classList.remove('hidden');setTimeout(()=>$('focus').classList.add('hidden'),3500)}
 function selectOne(u){selected.clear();if(u.group){for(var v of s.units)if(v.group===u.group&&v.side==='il'&&v.hp>0&&!v.carriedBy)selected.add(v.id)}else selected.add(u.id);flashFocus(D.UNITS[u.type].n+(u.soldiers?' · '+u.soldiers+' לוחמים':'')+(u.group?' · קבוצה '+u.group:''));updateUI()}
 function pickUnit(p,side){var best=null,d=Infinity;for(var u of Sim.alive(s,side)){if(u.type==='hq'||D.UNITS[u.type].noSelect||(u.side==='hz'&&((u.hidden&&!u.revealed)||(!u.revealed&&Sim.inFog(s,u.x,u.y)))))continue;var q=ren.screen(u.x,u.y),r=Math.hypot(q.x-p.x,q.y-p.y);if(r<(D.UNITS[u.type].building?18:15)&&r<d){best=u;d=r}}return best}
@@ -81,12 +106,17 @@ function touch(p){var mini=ren.minimapHit(p.x,p.y);if(mini){ren.camera(mini.x,mi
  if(mode==='select'&&own){if(selected.has(own.id))selected.delete(own.id);else selected.add(own.id);updateUI();return}
  if(own){selectOne(own);return}
  if(selected.size){var hid=Sim.hiddenAt(s,w,Math.max(1.3,24/ren.view.z)),sel=selectedUnits(),engs=sel.filter(u=>D.UNITS[u.type].engineer);
-  if(hid&&engs.length){var hh=Sim.blowOrder(s,engs.map(u=>u.id),hid.key);var others=sel.filter(u=>!D.UNITS[u.type].engineer).map(u=>u.id);if(others.length)Sim.setOrder(s,others,{x:hid.x+1.5,y:hid.y+1.5});
-   if(hh){toast('🎯 הנדסה בדרך לפוצץ את '+D.HIDDEN[hh.kind].n+' (ליד '+hh.name+')'+(others.length?' · השאר מאבטחים':''));updateUI();return}}
+  if(hid&&engs.length){var others=sel.filter(u=>!D.UNITS[u.type].engineer).map(u=>u.id);
+   if(s.coord){run({kind:'blow',ids:engs.map(u=>u.id),key:hid.key,p:{x:hid.x,y:hid.y}});if(others.length)run({kind:'move',ids:others,p:{x:hid.x+1.5,y:hid.y+1.5}});updateUI();return}
+   var hh=Sim.blowOrder(s,engs.map(u=>u.id),hid.key);if(others.length)Sim.setOrder(s,others,{x:hid.x+1.5,y:hid.y+1.5});
+   if(hh){toast('🎯 הנדסה בדרך לנטרל את '+D.HIDDEN[hh.kind].n+' (ליד '+hh.name+')'+(others.length?' · השאר מאבטחים':''));updateUI();return}}
   var structure=s.sites.find(z=>Math.hypot(z.x-w.x,z.y-w.y)<2.8&&z.owner==='hz'&&!Sim.inFog(s,z.x,z.y));var target=enemy||(structure&&Sim.get(s,structure.building));
   var commandPoint=structure?{x:structure.x,y:structure.y}:target?{x:target.x,y:target.y}:w;
-  var ordIds=target?[...selected].filter(id=>{var q=Sim.get(s,id);return !(q&&D.UNITS[q.type].barrage)}):[...selected];var n=ordIds.length?Sim.setOrder(s,ordIds,commandPoint,target?target.id:0):0;
-  if(!warnAttack(sel,target)&&n)toast(n+' יחידות קיבלו פקודה '+(target?'לתקוף':'לנוע'));return}
+  if(target){var plan=attackPlan(sel,target);
+   if(!plan.ok.length&&!plan.allArty.length){toast(plan.warn||'אין יחידה שיכולה לתקוף את המטרה');return}
+   if(s.coord){var qids=plan.ok.concat(plan.arty).map(u=>u.id);if(!qids.length){toast('💥 תותחנים יורים רק כשהם פרוסים (״פריסה״)'+(plan.warn?' · '+plan.warn:''));return}run({kind:'attack',ids:qids,target:target.id,p:commandPoint,tx:target.x,ty:target.y});if(plan.warn)setTimeout(()=>toast(plan.warn),900);return}
+   var r=Sim.attackOrder(s,[...selected],target.id,commandPoint);toast(attackText(sel,target,r,plan));updateUI();return}
+  var r=run({kind:'move',ids:[...selected],p:w});if(!queued(r)&&r)toast(r+' יחידות קיבלו פקודה לנוע');return}
  var site=s.sites.find(z=>Math.hypot(z.x-w.x,z.y-w.y)<4.2);if(site)flashFocus(site.n+' · '+(site.owner==='il'?'נכבשה':'אויב')+' · '+D.SITE_T[site.t].income+'₪ ל־15 שניות');else flashFocus(D.TERRAIN[Sim.ground(w.x,w.y)].n+' · '+D.toLonLat(w.x,w.y).lat.toFixed(2)+'°N');
 }
 var canvas=$('world');canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -113,27 +143,32 @@ $('homeBtn').onclick=()=>{var u=Sim.get(s,s.hq);if(u)ren.camera(u.x+1,u.y-5,22)}
 $('group').onclick=()=>{var g=Sim.group(s,[...selected]);if(g)toast('קבוצה '+g+' אוגדה — פקודה אחת לכולם');updateUI()};
 $('split').onclick=()=>{var halves=Sim.split(s,[...selected]);if(halves.length){selected=new Set(halves[0]);toast('פיצול חצי־חצי');updateUI()}};
 $('load').onclick=()=>{var army=selectedUnits().filter(u=>u.soldiers);var transport=Sim.alive(s,'il').filter(u=>D.UNITS[u.type].carry).sort((a,b)=>Math.min(...army.map(v=>Sim.dist(a,v)))-Math.min(...army.map(v=>Sim.dist(b,v))))[0];
- var n=transport&&Sim.load(s,transport.id,army.map(u=>u.id));toast(n?n+' מחלקות עלו ל'+D.UNITS[transport.type].n:'קרבו את החי״ר לנמר/מסוק פנוי');updateUI()};
-$('unload').onclick=()=>{var n=selectedUnits().reduce((x,u)=>x+Sim.unload(s,u.id),0);toast(n?n+' מחלקות ירדו':'בחרו נמר או מסוק עם כוחות');updateUI()};
-$('build').onclick=()=>{var e=selectedUnits().find(u=>u.type==='engineer');var id=e&&Sim.buildPost(s,e.id);toast(id?'העמדה נבנית ליד ההנדסה':'בחרו מחלקת הנדסה עם תקציב פנוי');updateUI()};
-$('blow').onclick=()=>{var h=Sim.blowOrder(s,[...selected]);toast(h?'💥 הנדסה מפוצצת את '+D.HIDDEN[h.kind].n+' שלידה':'🎯 טאפ על פיר, מחסן נשק או יציאת מנהרה חשופים כדי לבחור יעד להנדסה');updateUI()};
+ if(s.coord&&transport){run({kind:'load',tid:transport.id,ids:army.map(u=>u.id)});return}var n=transport&&Sim.load(s,transport.id,army.map(u=>u.id));toast(n?n+' מחלקות עלו ל'+D.UNITS[transport.type].n:'קרבו את החי״ר לנמר/מסוק פנוי');updateUI()};
+$('unload').onclick=()=>{if(s.coord){run({kind:'unload',ids:selectedUnits().map(u=>u.id)});return}var n=selectedUnits().reduce((x,u)=>x+Sim.unload(s,u.id),0);toast(n?n+' מחלקות ירדו':'בחרו נמר או מסוק עם כוחות');updateUI()};
+$('build').onclick=()=>{var e=selectedUnits().find(u=>u.type==='engineer');if(s.coord&&e){run({kind:'build',ids:[e.id]});return}var id=e&&Sim.buildPost(s,e.id);toast(id?'העמדה נבנית ליד ההנדסה':'בחרו מחלקת הנדסה עם תקציב פנוי');updateUI()};
+$('blow').onclick=()=>{if(s.coord){toast('בתיאום: טאפ על הפיר / המחסן / המטען שההנדסה תנטרל');return}var h=Sim.blowOrder(s,[...selected]);toast(h?'💥 הנדסה מפוצצת את '+D.HIDDEN[h.kind].n+' שלידה':'🎯 טאפ על פיר, מחסן נשק, יציאת מנהרה או מטען צד חשופים כדי לבחור יעד להנדסה');updateUI()};
 $('xfer').onclick=()=>openTransfer();
+$('coordBtn').onclick=()=>coordToggle();$('coordGo').onclick=()=>coordGo();$('coordCancel').onclick=()=>coordCancel();
+for(let n=1;n<=D.CTRL.groups;n++){let b=$('cg'+n);if(!b)continue;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();clearTimeout(cgPress&&cgPress.timer);cgPress={n,long:false,timer:setTimeout(()=>{cgPress.long=true;cgSave(n);if(navigator.vibrate)try{navigator.vibrate(30)}catch(_){}},D.CTRL.longPress)}});
+ b.addEventListener('pointerup',e=>{e.preventDefault();if(!cgPress||cgPress.n!==n)return;clearTimeout(cgPress.timer);var wasLong=cgPress.long;cgPress=null;if(!wasLong)cgTapped(n)});
+ b.addEventListener('pointerleave',()=>{if(cgPress&&cgPress.n===n&&!cgPress.long){clearTimeout(cgPress.timer);cgPress=null}});b.addEventListener('contextmenu',e=>e.preventDefault())}
 ['deploy','fire','smoke','drop'].forEach(k=>$(k).onclick=()=>{if(mode==='aim'&&aim&&aim.action===k)endAim();else startAim(k)});$('aimCancel').onclick=()=>{endAim();toast('בוטל')};
-$('aimHere').onclick=()=>{if(aim&&aim.action==='deploy'){var n=Sim.deployOrder(s,aim.ids,null);toast(n?'נפרסים כאן · '+AR.deploy+' שניות':'אין סוללה פנויה');endAim()}};
-$('pack').onclick=()=>{var n=Sim.packOrder(s,arties().map(u=>u.id));toast(n?'מקפלים · '+AR.pack+' שניות ואז אפשר לזוז':'אין סוללה פרוסה');updateUI()};
-$('sweep').onclick=()=>{var r=Sim.sweepOrder(s,golanis().map(u=>u.id));toast(r.n?(r.found?'🔍 נחשפו '+r.found+' יעדים · ':'🔍 לא נמצאו מנהרות או מחסנים · ')+'+50% כוח אש ל-'+D.SWEEP.dur+' שניות':r.reason==='notUrban'?'סריקה עובדת רק בתוך כפר או עיר':r.reason==='cooldown'?'הסריקה בטעינה':'בחרו גולני');updateUI()};$('route').onclick=()=>{if(mode==='route')endRoute(false);else startRoute();updateUI()};$('routeDone').onclick=()=>endRoute(true);$('routeCancel').onclick=()=>{endRoute(false);toast('הגדרת הנתיב בוטלה')};$('routeUndo').onclick=()=>{if(draft&&draft.length){draft.pop();setRouteUI()}};
-$('stop').onclick=()=>{if(mode==='route')endRoute(false);if(mode==='aim')endAim();var n=Sim.hold(s,selectedUnits().map(u=>u.id));toast(n?'הנתיב בוטל · '+(n>1?n+' כלי טיס מחזיקים':'מחזיק במקום'):'הכוח מחזיק את השטח ולא רודף');updateUI()};
+$('aimHere').onclick=()=>{if(aim&&aim.action==='deploy'){if(s.coord){run({kind:'deploy',ids:aim.ids,p:null});endAim();return}var n=Sim.deployOrder(s,aim.ids,null);toast(n?'נפרסים כאן · '+AR.deploy+' שניות':'אין סוללה פנויה');endAim()}};
+$('pack').onclick=()=>{if(s.coord){run({kind:'pack',ids:arties().map(u=>u.id)});return}var n=Sim.packOrder(s,arties().map(u=>u.id));toast(n?'מקפלים · '+AR.pack+' שניות ואז אפשר לזוז':'אין סוללה פרוסה');updateUI()};
+$('sweep').onclick=()=>{if(s.coord){run({kind:'sweep',ids:golanis().map(u=>u.id)});return}var r=Sim.sweepOrder(s,golanis().map(u=>u.id));toast(r.n?(r.found?'🔍 נחשפו '+r.found+' יעדים · ':'🔍 לא נמצאו מנהרות או מחסנים · ')+'+50% כוח אש ל-'+D.SWEEP.dur+' שניות':r.reason==='notUrban'?'סריקה עובדת רק בתוך כפר או עיר':r.reason==='cooldown'?'הסריקה בטעינה':'בחרו גולני');updateUI()};$('route').onclick=()=>{if(mode==='route')endRoute(false);else startRoute();updateUI()};$('routeDone').onclick=()=>endRoute(true);$('routeCancel').onclick=()=>{endRoute(false);toast('הגדרת הנתיב בוטלה')};$('routeUndo').onclick=()=>{if(draft&&draft.length){draft.pop();setRouteUI()}};
+$('stop').onclick=()=>{if(mode==='route')endRoute(false);if(mode==='aim')endAim();if(s.coord){run({kind:'hold',ids:selectedUnits().map(u=>u.id)});updateUI();return}var n=Sim.hold(s,selectedUnits().map(u=>u.id));toast(n?'הנתיב בוטל · '+(n>1?n+' כלי טיס מחזיקים':'מחזיק במקום'):'הכוח מחזיק את השטח ולא רודף');updateUI()};
 function insets(){var p=getComputedStyle($('safeProbe')),side=$('side').getBoundingClientRect();ren.view.it=parseFloat(p.paddingTop)||0;ren.view.ir=parseFloat(p.paddingRight)||0;ren.view.ib=parseFloat(p.paddingBottom)||0;ren.view.il=parseFloat(p.paddingLeft)||0;if(side.width)ren.view.right=Math.round(innerWidth-side.left)}
 function relayout(){ren.resize();insets()}window.addEventListener('resize',relayout);window.addEventListener('orientationchange',()=>setTimeout(relayout,250));relayout();document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 function frame(now){var dt=Math.min(.10,(now-last)/1000);last=now;if(!modal&&!s.paused){acc+=dt;var steps=0;while(acc>=1/30&&steps<4){Sim.step(s,1/30);acc-=1/30;steps++;
- for(var ev of s.events){if(['shot','hit','explosion','trophy','repair','salvo','lzone','reveal','blown','tunnelpop','drop','resupply','sweep','deployed'].includes(ev.kind)&&ev.x!==undefined)fx.push(ev);if(ev.kind==='resupply'&&ev.text)toast(ev.text);
- if(['salvo','reveal','blown','tunnelpop'].includes(ev.kind)&&ev.text)toast(ev.text);if(ev.kind==='blown')updateLaunchers();
+ for(var ev of s.events){if(['shot','hit','explosion','trophy','repair','salvo','lzone','reveal','blown','tunnelpop','drop','resupply','sweep','deployed','ambush','retake','lostsite','coord'].includes(ev.kind)&&ev.x!==undefined)fx.push(ev);if(ev.kind==='resupply'&&ev.text)toast(ev.text);
+ if(['salvo','reveal','blown','tunnelpop','ambush','retake','lostsite'].includes(ev.kind)&&ev.text)toast(ev.text);if(ev.kind==='blown')updateLaunchers();
  else if(ev.kind==='city'){if(typeof SHARED!=='undefined'&&D.TD_CITY[ev.key])SHARED.capture(ev.key);save();toast(ev.name+' נכבשה!'+(D.TD_CITY[ev.key]?' נוספה גם למגן שמיים':''))}
  else if(ev.kind==='win'||ev.kind==='lose'){finish()}}
- }}fx=fx.filter(e=>s.time-e.time<(e.kind==='lzone'?9:e.kind==='salvo'?4:e.kind==='reveal'||e.kind==='tunnelpop'||e.kind==='blown'||e.kind==='drop'||e.kind==='resupply'||e.kind==='sweep'?2.5:1.25)).slice(-200);uiT+=dt;saveT+=dt;if(uiT>.25){uiT=0;updateUI()}if(saveT>25){saveT=0;save()}
+ }}fx=fx.filter(e=>s.time-e.time<(e.kind==='lzone'?9:e.kind==='salvo'?4:e.kind==='reveal'||e.kind==='tunnelpop'||e.kind==='blown'||e.kind==='drop'||e.kind==='resupply'||e.kind==='sweep'||e.kind==='ambush'||e.kind==='retake'||e.kind==='lostsite'?3:1.25)).slice(-200);uiT+=dt;saveT+=dt;if(uiT>.25){uiT=0;updateUI()}if(saveT>25){saveT=0;save()}
  if(noticeT&&now>noticeT){$('toast').classList.remove('show');noticeT=0}
  var snapshot=Object.assign({},s,{events:fx});ren.draw(snapshot,selected,box,1,{draft:mode==='route'?draft:null,aim:mode==='aim'?aim:null});requestAnimationFrame(frame)}
 updateIntro();updateUI();requestAnimationFrame(frame);
 // Test hook. All gameplay uses the same simulation and UI pipeline.
-window.LEBANON={get state(){return s},openTransfer,sim:Sim,data:D,renderer:ren,select:id=>{selected=new Set([id]);updateUI()},selectIds:ids=>{selected=new Set(ids);updateUI()},start:begin,save,restore:()=>Sim.restore(storage.get(KEY)),command:(ids,x,y,target)=>Sim.setOrder(s,ids,{x,y},target||0),tap:(x,y)=>touch({x,y}),aim:a=>startAim(a),get aimState(){return aim},get mode(){return mode},get draft(){return draft}};
+window.LEBANON={get state(){return s},openTransfer,sim:Sim,data:D,renderer:ren,select:id=>{selected=new Set([id]);updateUI()},selectIds:ids=>{selected=new Set(ids);updateUI()},start:begin,save,restore:()=>Sim.restore(storage.get(KEY)),command:(ids,x,y,target)=>Sim.setOrder(s,ids,{x,y},target||0),tap:(x,y)=>touch({x,y}),aim:a=>startAim(a),get aimState(){return aim},get mode(){return mode},get draft(){return draft},get selected(){return [...selected]},coordToggle,coordGo,coordCancel,cgSave,cgSelect,cgTapped,run};
 })();

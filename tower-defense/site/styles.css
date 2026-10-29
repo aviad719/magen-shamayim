@@ -110,3 +110,13 @@ font-size:16px;font-weight:800;padding:10px 22px;border-radius:24px;border:1px s
 #offer h3{margin:0 0 6px;font-size:16px}#offer p{margin:0 0 9px;font-size:12.5px;line-height:1.45;color:#dbe6ff}#offer .orow{display:flex;gap:8px;justify-content:center}#offer .orow button{padding:8px 14px;font-size:13px;font-weight:800;border-radius:9px;border:1px solid #6d95ff;background:#16305e;color:#fff}#offer .orow .primary{background:#e8c13a;color:#1a1400;border-color:#ffe98a}
 #sellBar{position:absolute;top:calc(48px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:8px;align-items:center;background:#2a2408f0;border:1px solid #ffe066;border-radius:10px;padding:5px 9px;font-size:12px;color:#fff3c0;max-width:calc(100% - 140px)}#sellBar button{height:28px;min-width:30px;border-radius:8px;border:1px solid #ffe066;background:#4a3d0a;color:#fff}
 #intro li.v4{color:#dff0ff}
+
+/* v5: battery upgrade panel */
+#upPanel{position:absolute;top:calc(46px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));z-index:25;width:min(360px,calc(100% - 124px));max-height:calc(100% - 56px - env(safe-area-inset-bottom));overflow:auto;background:linear-gradient(135deg,#10233a,#0a1626);border:1px solid #ffd84a;border-radius:12px;padding:6px 9px;box-shadow:0 12px 40px #000b;font-size:12px}
+#upPanel .uphead{display:flex;align-items:center;gap:6px;font-size:14px;margin-bottom:2px}#upPanel .upstars{color:#ffd84a;font-size:12px}
+#upPanel .upx{margin-inline-start:auto;width:34px;height:30px;border-radius:8px;border:1px solid #88a;background:#1a2a40;color:#fff;font-size:14px}
+#upPanel .uprow{display:grid;grid-template-columns:88px 30px 1fr 60px;align-items:center;gap:5px;padding:3px 0;border-top:1px solid #ffffff14}
+#upPanel .upn{font-weight:700}#upPanel .uppips{color:#ffd84a;letter-spacing:1px;font-size:10px}#upPanel .upv{color:#cfe2f5;font-size:11px;line-height:1.25}#upPanel .upv i{color:#9fffc4;font-style:normal}
+#upPanel .upb{height:34px;border-radius:8px;border:1px solid #ffd84a;background:#4a3d0a;color:#fff3c0;font-weight:800;font-size:12.5px;touch-action:manipulation}#upPanel .upb.poor{opacity:.45}#upPanel .upb.max{border-color:#6c8;background:#163322;color:#9fe8b8}
+#upPanel .upfoot{margin-top:3px;color:#9fb6cc;font-size:10.5px}
+#intro li.v5{color:#fff6cf}

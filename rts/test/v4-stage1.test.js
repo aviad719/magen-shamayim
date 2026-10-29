@@ -59,4 +59,4 @@ test('what each unit attacks: recon UAV only drones; every unit type has an info
  assert.ok(Sim.canDamage('golani','hz_launcher'),'launchers are light targets');
  for(const t of Object.keys(U)){const line=Sim.attacksText(t);assert.ok(line.startsWith('🎯'),t+': '+line)}
  assert.match(Sim.attacksText('uav_recon'),/תוקף: רחפנים/);assert.match(Sim.attacksText('uav_recon'),/לא: חי״ר/);assert.match(Sim.attacksText('truck'),/לא תוקף/);
- const main=fs.readFileSync(path.join(RTS_DIR,'js','main.js'),'utf8');assert.ok(/warnAttack\(sel,target\)/.test(main)&&/attackInfo/.test(main))});
+ const main=fs.readFileSync(path.join(RTS_DIR,'js','main.js'),'utf8');assert.ok(/(warnAttack|attackPlan)\(sel,target\)/.test(main)&&/attackInfo/.test(main))});

@@ -271,7 +271,20 @@
     desc: 'חד-פעמי: מטוס מצניח ארגז שמחדש תחמושת, דלק וקצת חיים לכוחות סביבו' };
   // Golani sweep: only inside a village or city. Reveals hidden objects nearby and +50% damage for 20 s.
   var SWEEP = { radius: 8, dur: 20, cd: 60, dmg: 1.5 };
-  var data = { MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
+  // ---------- v5: smarter enemy ----------
+  // Ambush squads hide near the roads and open fire when our units pass close; recon UAVs can spot them first.
+  // Roadside IEDs (hidden on roads) hit our vehicles; engineers and recon UAVs reveal them, engineers clear them.
+  // Counterattacks: Hezbollah gathers near a village we captured and tries to retake it if we left it empty.
+  var SMART = {
+    ambush: { count: { easy: 3, normal: 5, hard: 8 }, trigger: 4.2, uavSpot: 5.5, burst: 1.6, burstT: 5, minHq: 16, gap: 10,
+              types: ['hz_inf', 'hz_atgm', 'hz_inf', 'hz_mg', 'hz_inf', 'hz_atgm', 'hz_inf', 'hz_mg'] },
+    ied:    { count: { easy: 5, normal: 8, hard: 12 }, trigger: .9, radius: 1.6, dmg: { light: 150, armor: 95, inf: 18, bld: 0 }, minHq: 12, gap: 6 },
+    retake: { every: { easy: 360, normal: 270, hard: 180 }, size: { easy: 3, normal: 4, hard: 6 }, gather: 18, hold: 12, range: 30, give: 100 }
+  };
+  HIDDEN.ied = { n: 'מטען צד', reveal: 0, revealEng: 4, revealUav: 4.5, blow: 3, bounty: 100 };
+  // v5: control groups 1-4 and coordinated attack
+  var CTRL = { groups: 4, longPress: 600, doubleTap: 380 };
+  var data = { SMART: SMART, CTRL: CTRL, MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
     ROADS: ROADS, FORESTS: FORESTS, IL_TOWNS: IL_TOWNS, SITES: SITES, HOME: HOME, UNITS: UNITS, BUILD: BUILD, QUEUE_MAX: QUEUE_MAX,
     TERRAIN: TERRAIN, BONUS: BONUS, SITE_T: SITE_T, DIFF: DIFF, TD_CITY: { tyre: 'tyre', sidon: 'sidon', beirut: 'beirut' },
     TUNNELS: TUNNELS, CACHES: CACHES, LAUNCH_AREAS: LAUNCH_AREAS, HIDDEN: HIDDEN, SUPPLY: SUPPLY, ARTY: ARTY, PARA: PARA, SUPPLY_DROP: SUPPLY_DROP, SWEEP: SWEEP };
