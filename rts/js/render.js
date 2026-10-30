@@ -121,7 +121,7 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     if(u.goal&&selected.has(u.id)){var g=screen(u.goal.x,u.goal.y);ctx.strokeStyle='rgba(244,229,147,.35)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(g.x,g.y);ctx.stroke()}
   }
   var now=s.time;for(var ev of s.events){if(ev.x===undefined)continue;var age=now-ev.time;if(age<0)age=0;var p=screen(ev.x,ev.y);
-   if(ev.kind==='ambush'||ev.kind==='retake'||ev.kind==='lostsite'){ctx.save();ctx.globalAlpha=Math.max(0,1-age/3);ctx.strokeStyle=ev.kind==='ambush'?'#ff4a3a':'#ff9a4a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,14+age*26,0,7);ctx.stroke();ctx.font='800 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffd0c0';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(ev.kind==='ambush'?'⚠ מארב!':ev.kind==='retake'?'⚠ מתקפת נגד':'⚠ הכפר אבד',p.x,p.y-22);ctx.restore();continue}
+   if(ev.kind==='ambush'||ev.kind==='retake'||ev.kind==='lostsite'){ctx.save();ctx.globalAlpha=Math.max(0,1-age/3);ctx.strokeStyle=ev.kind==='ambush'?'#ff4a3a':'#ff9a4a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,14+age*26,0,7);ctx.stroke();ctx.font='800 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffd0c0';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(ev.kind==='ambush'?'⚠ מארב!':ev.kind==='retake'?'⚠ מתקפת נגד':((s.sites.find(q=>q.key===ev.key)||{}).t==='city'?'⚠ העיר אבדה':'⚠ הכפר אבד'),p.x,p.y-22);ctx.restore();continue}
    if(ev.kind==='salvo'){var q=screen(ev.tx,ev.ty),L=Math.hypot(q.x-p.x,q.y-p.y)||1,sd=(ev.time*7%2<1?1:-1)*.28,cx=(p.x+q.x)/2-(q.y-p.y)*sd,cy=(p.y+q.y)/2+(q.x-p.x)*sd-Math.min(200,L*.3);
     if(age<.5){ctx.fillStyle='rgba(255,200,120,'+(1-age/.5)+')';ctx.beginPath();ctx.arc(p.x,p.y,6+age*20,0,7);ctx.fill()}
     for(var ri=0;ri<ev.n;ri++){var kk=(age-ri*.22)/2.8;if(kk<=0||kk>1.15)continue;var k1=Math.min(1,kk),k0=Math.max(0,k1-.28);ctx.strokeStyle='rgba(255,170,90,'+(kk>1?(1.15-kk)/.15*.6:.6)+')';ctx.lineWidth=2;ctx.beginPath();
@@ -187,6 +187,10 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
    ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffd23f';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText('🎯 יעד הנדסה',pb.x,pb.y-30);ctx.restore()}
   // v5: Hezbollah gathering for a counterattack (the warning toast names the village)
   if(s.retake&&s.retake.phase==='gather'){var rp=screen(s.retake.x,s.retake.y),pu=1+.12*Math.sin(s.time*5);ctx.save();ctx.strokeStyle='rgba(255,120,60,.9)';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.arc(rp.x,rp.y,3.2*z*pu,0,7);ctx.stroke();ctx.setLineDash([]);ctx.font='800 11px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffb48a';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText('⚠ התקבצות למתקפת נגד',rp.x,rp.y-3.2*z-6);ctx.restore()}
+  // v6a: Hezbollah massing to counterattack one of our cities: pulsing red ring at the rally point, a line to the city and a countdown
+  if(s.cityRaid&&s.cityRaid.phase==='gather'){var cz=s.sites.find(q=>q.key===s.cityRaid.key),rq=screen(s.cityRaid.x,s.cityRaid.y),pq=1+.15*Math.sin(s.time*6);ctx.save();ctx.strokeStyle='rgba(255,70,50,.95)';ctx.lineWidth=2.5;ctx.setLineDash([7,4]);ctx.beginPath();ctx.arc(rq.x,rq.y,4.2*z*pq,0,7);ctx.stroke();
+   if(cz){var cq=screen(cz.x,cz.y);ctx.beginPath();ctx.moveTo(rq.x,rq.y);ctx.lineTo(cq.x,cq.y);ctx.stroke()}ctx.setLineDash([]);ctx.font='800 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#ff9a80';ctx.shadowColor='#000';ctx.shadowBlur=3;
+   ctx.fillText('⚠ התקפת נגד על '+s.cityRaid.name+' בעוד '+Math.max(0,Math.ceil(s.cityRaid.t))+' שנ׳',rq.x,rq.y-4.2*z-7);ctx.restore()}
   // v5: coordinated attack: queued orders as dashed lines and numbered markers until "✓ בצע"
   if(s.coord&&s.coord.orders.length){var CC={move:'#9ff2ff',attack:'#ff8a6a',blow:'#ffb35a',deploy:'#ffd23f',fire:'#ff5a3a',smoke:'#e3e8ee',drop:'#c9a6ff',supply:'#8dffb0',route:'#7fe3ff',pack:'#ffd23f',hold:'#d6d6d6',sweep:'#ffe066',load:'#d6d6d6',unload:'#d6d6d6',build:'#d6d6d6'},
     IC={move:'➜',attack:'⚔',blow:'💥',deploy:'📍',fire:'🔥',smoke:'🌫',drop:'🪂',supply:'📦',route:'✈',pack:'קפל',hold:'✋',sweep:'🔍',load:'⬆',unload:'⬇',build:'🏗'};
@@ -246,7 +250,8 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
    for(var eu of s.units){if(eu.side!=='hz'||eu.hp<=0||eu.carriedBy||D.UNITS[eu.type].building||(eu.hidden&&!eu.revealed)||(s.fog&&S.inFog(s,eu.x,eu.y)))continue;ctx.fillStyle='#ff5a4a';ctx.fillRect(ox+eu.x/M.cols*w-1,oy+eu.y/M.rows*h-1,2.4,2.4)}
    for(var u of s.units)if(u.side==='il'&&u.hp>0&&!u.carriedBy){ctx.fillStyle='#86ffff';ctx.fillRect(ox+u.x/M.cols*w,oy+u.y/M.rows*h,2,2)}
    var r=world(0,0),b=world(view.w-view.right,view.h);ctx.strokeStyle='#f6efbf';ctx.strokeRect(ox+r.x/M.cols*w,oy+r.y/M.rows*h,(b.x-r.x)/M.cols*w,(b.y-r.y)/M.rows*h);
-   ctx.font='600 9px system-ui';ctx.fillStyle='#e0f3ed';ctx.textAlign='center';ctx.fillText('מיני־מפה',ox+w/2,oy-8)
+   ctx.font='600 9px system-ui';ctx.fillStyle='#e0f3ed';ctx.textAlign='center';ctx.fillText('מיני־מפה',ox+w/2,oy-8);
+   if(s.cityRaid){var mx=ox+s.cityRaid.x/M.cols*w,my=oy+s.cityRaid.y/M.rows*h;ctx.strokeStyle=(s.time*3%2<1)?'#ff3b2f':'#ffd0c0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mx,my,5,0,7);ctx.stroke()}
  }
  function minimapHit(x,y){var ox=8+(view.il||0),oy=view.h-126-8-(view.ib||0);if(x>=ox&&x<=ox+94&&y>=oy&&y<=oy+126)return{x:(x-ox)/94*M.cols,y:(y-oy)/126*M.rows};return null}
  resize();return{ctx,view,draw,resize,screen,world,camera,minimapHit,tile};}

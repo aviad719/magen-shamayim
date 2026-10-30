@@ -279,7 +279,10 @@
     ambush: { count: { easy: 3, normal: 5, hard: 8 }, trigger: 4.2, uavSpot: 5.5, burst: 1.6, burstT: 5, minHq: 16, gap: 10,
               types: ['hz_inf', 'hz_atgm', 'hz_inf', 'hz_mg', 'hz_inf', 'hz_atgm', 'hz_inf', 'hz_mg'] },
     ied:    { count: { easy: 5, normal: 8, hard: 12 }, trigger: .9, radius: 1.6, dmg: { light: 150, armor: 95, inf: 18, bld: 0 }, minHq: 12, gap: 6 },
-    retake: { every: { easy: 360, normal: 270, hard: 180 }, size: { easy: 3, normal: 4, hard: 6 }, gather: 18, hold: 12, range: 30, give: 100 }
+    retake: { every: { easy: 360, normal: 270, hard: 180 }, size: { easy: 3, normal: 4, hard: 6 }, gather: 18, hold: 12, range: 30, give: 100 },
+    // v6a: counterattacks on CITIES we hold: a bigger force (6-8 incl. ATGM teams), 30 s warning, then the same 12 s retake rule.
+    cityRaid: { every: { easy: 600, normal: 480, hard: 360 }, size: { easy: 6, normal: 7, hard: 8 }, atgm: { easy: 2, normal: 2, hard: 3 }, warn: 30, attack: 120, min: 4, spawn: 3, range: 40, rally: 8,
+                fill: ['hz_inf', 'hz_atgm', 'hz_inf', 'tech_atgm', 'hz_mg', 'hz_inf', 'tech_mg', 'hz_atgm'] }
   };
   HIDDEN.ied = { n: 'מטען צד', reveal: 0, revealEng: 4, revealUav: 4.5, blow: 3, bounty: 100 };
   // v5: control groups 1-4 and coordinated attack

@@ -391,15 +391,39 @@ function retakeTick(s,dt){var R=SM.retake,dif=DIFF[s.diff];if(s.time<=dif.grace)
  force.forEach((u,i)=>{u.goal={x:rally.x+(i%3)-1,y:rally.y+((i/3)|0)*.8};u.raid=1;u.retake=c.z.key});s.stats.counters=(s.stats.counters||0)+1;
  s.retake={key:c.z.key,phase:'gather',t:R.gather,ids:force.map(u=>u.id),x:rally.x,y:rally.y};
  var tx='⚠ חיזבאללה מתקבץ ליד '+c.z.n+' למתקפת נגד ('+force.length+' כוחות)';emit(s,tx,'counter');s.events.push({kind:'retake',x:rally.x,y:rally.y,text:tx,time:s.time})}
-function recapture(s,dt){var R=SM.retake,hz=null,il=null;for(var z of s.sites){if(z.owner!=='il'||!(z.t==='village'||z.t==='outpost'))continue;var r=(S[z.t].radius||2.5)+1.2;
+// v6a: city counterattacks. Every ~8 min (normal) while we hold a city, Hezbollah masses 6-8 units incl. ATGM teams
+// at a rally point near one of our cities, warns 30 s ahead, then storms it. Same retake rule as villages (recapture()).
+function cityRaidTick(s,dt){var C=SM.cityRaid,dif=DIFF[s.diff];if(!C||s.time<=dif.grace)return;var cr=s.cityRaid;
+ if(cr){cr.t-=dt;var force=cr.ids.map(id=>get(s,id)).filter(u=>u&&u.hp>0),z=s.sites.find(q=>q.key===cr.key);if(!z||z.owner!=='il'||!force.length){s.cityRaid=null;return}
+  if(cr.phase==='gather'&&cr.t<=0){cr.phase='attack';cr.t=C.attack;force.forEach((u,i)=>{u.goal={x:z.x+(i%3)-1,y:z.y+((i/3)|0)-1};u.raid=1});var tx='⚠ התקפת נגד: חיזבאללה מסתער על '+z.n+'! השאירו בעיר כוח כדי להחזיק בה';emit(s,tx,'counter');s.events.push({kind:'retake',x:z.x,y:z.y,text:tx,time:s.time})}
+  else if(cr.phase==='attack'){for(var u of force)if(!u.goal&&dist(u,z)>3&&!nearest(s,u,5))u.goal={x:z.x,y:z.y};if(cr.t<=0){for(var u of force)u.retake=0;s.cityRaid=null}}return}
+ var cities=s.sites.filter(z=>z.owner==='il'&&z.t==='city');if(!cities.length)return;
+ s.cityRaidT=(s.cityRaidT||0)+dt;if(s.cityRaidT<(C.every[s.diff]||480))return;s.cityRaidT=0;
+ var ilG=alive(s,'il').filter(u=>U[u.type].move!=='air'&&!U[u.type].building);
+ var z=cities.map(c=>({c,def:ilG.filter(u=>dist(u,c)<S.city.radius+6).length})).sort((a,b)=>a.def-b.def||a.c.y-b.c.y)[0].c;
+ var size=C.size[s.diff]||7,needAtgm=C.atgm[s.diff]||2;
+ var pool=alive(s,'hz').filter(u=>!U[u.type].building&&u.type!=='drone'&&!u.raid&&!u.ambush&&!u.retake&&U[u.type].move!=='air'&&u.site&&dist(u,z)<C.range).sort((a,b)=>dist(a,z)-dist(b,z));
+ var force=pool.slice(0,size),isAtgm=u=>u.type==='hz_atgm'||u.type==='tech_atgm';
+ var home=s.sites.filter(q=>q.owner==='hz'&&q.key!==z.key).sort((a,b)=>dist(a,z)-dist(b,z))[0]||{x:z.x,y:Math.max(2,z.y-14),key:''};
+ // Top-ups (incl. the ATGM teams) come from Hezbollah's reserve and respect its mobile-unit cap, so a worn-down enemy sends what it has left.
+ var mobile=alive(s,'hz').filter(u=>!U[u.type].building&&u.type!=='drone').length,room=Math.min(C.spawn,Math.max(0,(dif.cap||90)-mobile));
+ var spawn=t=>{if(room<=0)return null;room--;var p=landNear(home.x+(rand(s)-.5)*4,home.y+(rand(s)-.5)*4,'foot'),u=makeUnit(s,t,'hz',p.x,p.y,{site:home.key});force.push(u);return u},k=0;
+ while(force.filter(isAtgm).length<needAtgm&&room>0){var drop=force.length>=size?force.filter(u=>!isAtgm(u)).pop():null;if(drop)force.splice(force.indexOf(drop),1);spawn('hz_atgm')}
+ while(force.length<size&&room>0)spawn(C.fill[k++%C.fill.length]);
+ if(force.length<C.min)return;
+ var cx=home.x,cy=home.y,dd=Math.hypot(cx-z.x,cy-z.y)||1,kk=Math.min(1,C.rally/dd),rally=landNear(z.x+(cx-z.x)*kk,z.y+(cy-z.y)*kk,'foot');
+ force.forEach((u,i)=>{u.goal={x:rally.x+(i%3)-1,y:rally.y+((i/3)|0)*.8};u.raid=1;u.retake=z.key;u.hold=0});s.stats.cityRaids=(s.stats.cityRaids||0)+1;s.stats.counters=(s.stats.counters||0)+1;
+ s.cityRaid={key:z.key,name:z.n,phase:'gather',t:C.warn,ids:force.map(u=>u.id),x:rally.x,y:rally.y};
+ var tx='⚠ חיזבאללה מתקבץ להתקפת נגד על '+z.n;emit(s,tx,'counter');s.events.push({kind:'retake',x:rally.x,y:rally.y,text:tx,time:s.time})}
+function recapture(s,dt){var R=SM.retake,hz=null,il=null;for(var z of s.sites){if(z.owner!=='il'||!(z.t==='village'||z.t==='outpost'||z.t==='city'))continue;var r=(S[z.t].radius||2.5)+1.2;
   hz=hz||alive(s,'hz').filter(u=>u.retake&&!U[u.type].building&&u.type!=='drone'&&U[u.type].move!=='air');
   if(!hz.some(u=>u.retake===z.key&&dist(u,z)<r)){if(z.lostT)z.lostT=Math.max(0,z.lostT-dt);continue}
   il=il||alive(s,'il').filter(u=>U[u.type].move!=='air'&&!U[u.type].building);if(il.some(u=>dist(u,z)<r+2)){if(z.lostT)z.lostT=Math.max(0,z.lostT-dt);continue}
   z.lostT=(z.lostT||0)+dt;if(z.lostT<R.hold)continue;z.lostT=0;z.owner='hz';z.capture=0;s.captures=Math.max(0,s.captures-1);var rule=S[z.t];z.prod=rule.prod;
   var b=makeUnit(s,rule.bld,'hz',z.x,z.y,{site:z.key});b.hp*=.5;z.building=b.id;s.stats.lostSites=(s.stats.lostSites||0)+1;
-  for(var u of hz)if(dist(u,z)<r+3||u.retake===z.key){u.site=z.key;u.raid=0;u.retake=0;u.goal=null;u.hold=1}if(s.retake&&s.retake.key===z.key)s.retake=null;
+  for(var u of hz)if(dist(u,z)<r+3||u.retake===z.key){u.site=z.key;u.raid=0;u.retake=0;u.goal=null;u.hold=1}if(s.retake&&s.retake.key===z.key)s.retake=null;if(s.cityRaid&&s.cityRaid.key===z.key)s.cityRaid=null;
   var tx='⚠ '+z.n+' נכבשה מחדש בידי חיזבאללה! צריך לכבוש אותה שוב';emit(s,tx,'lostsite');s.events.push({kind:'lostsite',key:z.key,x:z.x,y:z.y,text:tx,time:s.time})}}
-function v5Tick(s,dt){if(!s.v5&&s.hidden)setupSmart(s,s.hidden.length+100);iedTick(s,dt);retakeTick(s,dt);s.recT=(s.recT||0)+dt;if(s.recT>=.5){recapture(s,s.recT);s.recT=0}}
+function v5Tick(s,dt){if(!s.v5&&s.hidden)setupSmart(s,s.hidden.length+100);iedTick(s,dt);retakeTick(s,dt);cityRaidTick(s,dt);s.recT=(s.recT||0)+dt;if(s.recT>=.5){recapture(s,s.recT);s.recT=0}}
 // Control groups 1-4 (stored on the units, so they survive saves). A unit belongs to one group at a time.
 function setCtrlGroup(s,n,ids){n=n|0;if(n<1||n>D.CTRL.groups)return 0;var set=new Set(ids),k=0;for(var u of s.units){if(u.side!=='il')continue;if(set.has(u.id)&&u.hp>0&&!U[u.type].building){u.cg=n;k++}else if(u.cg===n)u.cg=0}return k}
 function ctrlGroup(s,n){return s.units.filter(u=>u.side==='il'&&u.hp>0&&!u.carriedBy&&u.cg===n).map(u=>u.id)}
@@ -436,6 +460,6 @@ function attacksText(type){var sp=U[type];if(!sp)return '';if(sp.supplier)return
 function actionsFor(units){var a=new Set(['stop','group','split']);for(var u of units||[]){var sp=U[u.type];if(!sp)continue;
   if(sp.engineer){a.add('blow');a.add('build')}if(sp.para){a.add('drop')}if(sp.barrage){a.add('deploy');a.add('fire');a.add('smoke');a.add('pack')}
   if(sp.carry){a.add('load');a.add('unload')}if(u.soldiers>0)a.add('load');if(canPatrol(u))a.add('route');if(sp.sweep)a.add('sweep')}return a}
-var api={inLebanon,setupSmart,ambushTick,iedTick,retakeTick,recapture,setCtrlGroup,ctrlGroup,attackOrder,command,coordStart,coordCancel,coordExec,order,visionGrid,SM,inSmoke,art,isArty,deployOrder,packOrder,artyFire,inArtyRange,barrageImpact,dropOrder,canBoard,supplyDrop,crateLand,isUrban,sweepOrder,vsTable,canDamage,attacksText,actionsFor,ARMOR_N,setRoute,hold,canPatrol,patrolSuits,hiddenTargets,findHidden,hiddenAt,sealExit,PATROL,setupHidden,launchers,launchersAlive,blowOrder,blowUp,supplyZones,inSupplyZone,supplyLevel,liveCaches,upgrade,forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
+var api={inLebanon,setupSmart,ambushTick,iedTick,retakeTick,cityRaidTick,recapture,setCtrlGroup,ctrlGroup,attackOrder,command,coordStart,coordCancel,coordExec,order,visionGrid,SM,inSmoke,art,isArty,deployOrder,packOrder,artyFire,inArtyRange,barrageImpact,dropOrder,canBoard,supplyDrop,crateLand,isUrban,sweepOrder,vsTable,canDamage,attacksText,actionsFor,ARMOR_N,setRoute,hold,canPatrol,patrolSuits,hiddenTargets,findHidden,hiddenAt,sealExit,PATROL,setupHidden,launchers,launchersAlive,blowOrder,blowUp,supplyZones,inSupplyZone,supplyLevel,liveCaches,upgrade,forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
 root.LF=root.LF||{};root.LF.sim=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
