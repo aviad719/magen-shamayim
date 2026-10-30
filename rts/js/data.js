@@ -287,7 +287,48 @@
   HIDDEN.ied = { n: 'מטען צד', reveal: 0, revealEng: 4, revealUav: 4.5, blow: 3, bounty: 100 };
   // v5: control groups 1-4 and coordinated attack
   var CTRL = { groups: 4, longPress: 600, doubleTap: 380 };
-  var data = { SMART: SMART, CTRL: CTRL, MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
+
+  // ---------- v6b: Sayeret Matkal, night, intel on a senior commander, theater map ----------
+  UNITS.matkal = { side: 'il', n: 'סיירת מטכ״ל', cls: 'inf', armor: 'inf', soldiers: 4, hpPer: 24, speed: 1.5, vision: 7, cost: 700, time: 10, q: 'inf', move: 'foot', beret: '#1d1d1d', supply: { ammo: 100, use: [.25, 1.5] },
+                para: true, maxAlive: 2, stealth: { r: 2, fire: 4 }, detect: 4, strike: { dur: 15, cd: 90, cap: 2, dmg: 2 },
+                desc: 'כוח עילית (4 לוחמים): מדויק, קטלני ומהיר. חמקן: האויב רואה אותו רק מ-2 משבצות או כשהוא יורה. חושף מארבים ומטענים עד 4 משבצות. לא פותח באש מעצמו (כדי לא להיחשף): טאפ על אויב כדי לתקוף. ⚡ פשיטה. אפשר להצניח. עד 2 בו זמנית',
+                weapons: [{ n: 'רובי סער', range: 5, dmg: 4, cd: .85, fx: 'bullet', vs: { inf: 1, light: .65, armor: .08, bld: .18, drone: .4, air: .05 } },
+                          { n: 'לאו', range: 4.5, dmg: 32, cd: 5, fx: 'rocket', vs: { inf: .35, light: 1, armor: .55, bld: .7 } }] };
+  BUILD.inf.push('matkal');
+  // Night-vision units: full vision and +15% accuracy at night.
+  var NV = ['matkal', 'para', 'golani', 'merkava', 'namer', 'uav_recon', 'uav_attack', 'heli'];
+  NV.forEach(function (k) { if (UNITS[k]) UNITS[k].nv = true; });
+  // Day 6 min / night 3 min, 30 s dusk and dawn. vis = vision lost at night (no NV); spot = hidden-object reveal radius lost (no NV);
+  // hzFloor: at night Hezbollah's reaction radius is halved but never below its weapon range + hzFloor tiles (keeps defenders reacting).
+  // nvAcc / hzAcc = accuracy (damage) at night; aa = enemy fire at transport/supply planes at night.
+  var DAYNIGHT = { day: 360, night: 180, fade: 30, vis: .5, hzFloor: 2, siteVis: .6, nvAcc: 1.15, hzAcc: .75, spot: .5, aa: .5 };
+  // Intel on a senior Hezbollah commander: every ~5 min, 6 min to take the village and bring the captor home.
+  var INTEL = { first: 300, every: 300, timer: 360, reward: 1500, matkalBonus: .5, reveal: 14, revealT: 90, deliver: 3.5, pick: 4 };
+  // Theater (campaign) map. holder: who holds the city; front: which front it belongs to (only lebanon is open).
+  var THEATER = {
+    box: { lon0: 32.6, lon1: 63.4, lat0: 40.6, lat1: 24.4 },
+    fronts: { lebanon: { n: 'לבנון', open: true }, syria: { n: 'סוריה', open: false }, iraq: { n: 'עיראק', open: false }, iran: { n: 'איראן', open: false } },
+    holders: { il: { n: 'ישראל', c: '#65e5d0' }, hz: { n: 'חיזבאללה', c: '#f3ab63' }, syria: { n: 'משטר סוריה', c: '#e0645a' }, iraq: { n: 'מיליציות עיראק', c: '#d9813e' }, iran: { n: 'איראן', c: '#c94848' } },
+    cities: [
+      { key: 'beirut', n: 'ביירות', lat: 33.89, lon: 35.50, front: 'lebanon', site: 'beirut', cap: 1 },
+      { key: 'tyre', n: 'צור', lat: 33.27, lon: 35.20, front: 'lebanon', site: 'tyre' },
+      { key: 'sidon', n: 'צידון', lat: 33.56, lon: 35.37, front: 'lebanon', site: 'sidon' },
+      { key: 'nabatieh', n: 'נבטייה', lat: 33.38, lon: 35.48, front: 'lebanon', site: 'nabatieh' },
+      { key: 'baalbek', n: 'בעלבכ', lat: 34.01, lon: 36.21, front: 'lebanon', holder: 'hz' },
+      { key: 'damascus', n: 'דמשק', lat: 33.51, lon: 36.29, front: 'syria', holder: 'syria', cap: 1 },
+      { key: 'homs', n: 'חומס', lat: 34.73, lon: 36.72, front: 'syria', holder: 'syria' },
+      { key: 'aleppo', n: 'חלב', lat: 36.20, lon: 37.16, front: 'syria', holder: 'syria' },
+      { key: 'baghdad', n: 'בגדאד', lat: 33.31, lon: 44.37, front: 'iraq', holder: 'iraq', cap: 1 },
+      { key: 'mosul', n: 'מוסול', lat: 36.34, lon: 43.13, front: 'iraq', holder: 'iraq' },
+      { key: 'basra', n: 'בצרה', lat: 30.51, lon: 47.81, front: 'iraq', holder: 'iraq' },
+      { key: 'tehran', n: 'טהרן', lat: 35.69, lon: 51.39, front: 'iran', holder: 'iran', cap: 1 },
+      { key: 'isfahan', n: 'אספהאן', lat: 32.65, lon: 51.67, front: 'iran', holder: 'iran' },
+      { key: 'tabriz', n: 'תבריז', lat: 38.08, lon: 46.29, front: 'iran', holder: 'iran' },
+      { key: 'shiraz', n: 'שיראז', lat: 29.59, lon: 52.58, front: 'iran', holder: 'iran' }
+    ],
+    labels: [['לבנון', 34.75, 34.35, 'lebanon'], ['סוריה', 35.0, 38.6, 'syria'], ['עיראק', 33.0, 43.2, 'iraq'], ['איראן', 32.8, 54.5, 'iran'], ['ישראל', 31.0, 34.9, '']]
+  };
+  var data = { NV: NV, DAYNIGHT: DAYNIGHT, INTEL: INTEL, THEATER: THEATER, SMART: SMART, CTRL: CTRL, MAP: MAP, toTile: toTile, toLonLat: toLonLat, COAST: COAST, LITANI: LITANI, BRIDGES: BRIDGES, BORDER: BORDER, SYRIA: SYRIA,
     ROADS: ROADS, FORESTS: FORESTS, IL_TOWNS: IL_TOWNS, SITES: SITES, HOME: HOME, UNITS: UNITS, BUILD: BUILD, QUEUE_MAX: QUEUE_MAX,
     TERRAIN: TERRAIN, BONUS: BONUS, SITE_T: SITE_T, DIFF: DIFF, TD_CITY: { tyre: 'tyre', sidon: 'sidon', beirut: 'beirut' },
     TUNNELS: TUNNELS, CACHES: CACHES, LAUNCH_AREAS: LAUNCH_AREAS, HIDDEN: HIDDEN, SUPPLY: SUPPLY, ARTY: ARTY, PARA: PARA, SUPPLY_DROP: SUPPLY_DROP, SWEEP: SWEEP };

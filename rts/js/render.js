@@ -100,12 +100,14 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     if(sp.building&&u.type!=='post')continue;
     ctx.save();ctx.translate(p.x,p.y);if(sp.move==='air'){ctx.fillStyle='rgba(0,0,0,.30)';ctx.beginPath();ctx.ellipse(4,5,sz*1.1,sz*.6,0,0,7);ctx.fill()}
     if(selected.has(u.id)){ctx.strokeStyle='#fff5bc';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);ctx.beginPath();ctx.arc(0,0,sz+5,0,7);ctx.stroke();ctx.setLineDash([])}
-    drawUnit(u,sp,own,sz,s.time);
+    if(own&&sp.stealth&&!(u.firedT>s.time))ctx.globalAlpha=.62;if(own&&u.strikeT>0){ctx.strokeStyle='rgba(255,214,60,'+(.55+.35*Math.sin(s.time*10))+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,sz+3,0,7);ctx.stroke()}
+    drawUnit(u,sp,own,sz,s.time);ctx.globalAlpha=1;
     if(u.type==='givati'&&u.hold>2&&!u.goal){ctx.fillStyle='rgba(190,140,255,.9)';ctx.beginPath();ctx.moveTo(0,-sz-9);ctx.lineTo(5,-sz-7);ctx.lineTo(4,-sz-2);ctx.lineTo(0,-sz);ctx.lineTo(-4,-sz-2);ctx.lineTo(-5,-sz-7);ctx.closePath();ctx.fill()}
     if(u.flash){ctx.globalAlpha=Math.min(1,u.flash/.22);ctx.fillStyle='#fff8b4';ctx.beginPath();ctx.arc(0,0,sz*.45,0,7);ctx.fill();ctx.globalAlpha=1}
     ctx.restore();
     // Health bars, enemy/Israeli IDs, group number, soldier count.
     if(u.hp<u.maxHp||selected.has(u.id)){var width=Math.max(13,sz*2);ctx.fillStyle='rgba(0,0,0,.76)';ctx.fillRect(p.x-width/2,p.y-sz-7,width,3);ctx.fillStyle=u.hp/u.maxHp>.4?'#4ee4b5':'#ff8069';ctx.fillRect(p.x-width/2,p.y-sz-7,width*Math.max(0,u.hp/u.maxHp),3)}
+    if(own&&u.prisoner){ctx.save();ctx.font='700 13px system-ui';ctx.textAlign='center';ctx.fillStyle='rgba(30,22,0,.9)';ctx.beginPath();ctx.arc(p.x-sz-6,p.y-sz-8,8,0,7);ctx.fill();ctx.strokeStyle='#ffd23f';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#fff';ctx.fillText('⛓',p.x-sz-6,p.y-sz-3.5);ctx.restore()}
     if(own&&u.cg){var bx=p.x+sz+1,byy=p.y-sz-12;ctx.fillStyle='rgba(24,20,4,.92)';ctx.fillRect(bx,byy,10,11);ctx.strokeStyle='#ffe066';ctx.lineWidth=1;ctx.strokeRect(bx,byy,10,11);ctx.fillStyle='#ffe066';ctx.font='800 9px system-ui';ctx.textAlign='center';ctx.fillText(String(u.cg),bx+5,byy+8.5)}
     if(own&&sp.supply){var lv=S.supplyLevel(u),bw2=Math.max(13,sz*2),by2=p.y-sz-4;
      if(selected.has(u.id)){if(lv.ammo!==null){ctx.fillStyle='rgba(0,0,0,.76)';ctx.fillRect(p.x-bw2/2,by2,bw2,3);ctx.fillStyle=lv.ammo>D.SUPPLY.low?'#ffd84a':'#ff7a3a';ctx.fillRect(p.x-bw2/2,by2,bw2*lv.ammo,3);by2+=3.6}
@@ -200,6 +202,12 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
     if(tp){var q=screen(tp.x,tp.y);if(co.kind==='fire'||co.kind==='smoke'){ctx.beginPath();ctx.arc(q.x,q.y,(co.kind==='fire'?D.ARTY.fire.radius:D.ARTY.smoke.radius)*z,0,7);ctx.stroke()}
      ctx.setLineDash([]);ctx.fillStyle='rgba(6,14,22,.92)';ctx.beginPath();ctx.arc(q.x,q.y,10,0,7);ctx.fill();ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=col;ctx.font='800 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(co.n),q.x,q.y+.5);
      ctx.textBaseline='alphabetic';ctx.font='700 10px system-ui';ctx.fillText(IC[co.kind]||'',q.x,q.y-14)}ctx.restore()}}
+  // v6b: intel marker on the village where the senior commander hides (flashing ring, label and countdown)
+  if(s.intel&&s.intel.state==='hiding'){var ip=screen(s.intel.x,s.intel.y),ipu=1+.18*Math.sin(s.time*7),il=Math.max(0,s.intel.until-s.time);ctx.save();ctx.strokeStyle=(s.time*2%2<1)?'#ffd23f':'#fff6c8';ctx.lineWidth=2.6;ctx.beginPath();ctx.arc(ip.x,ip.y,3.6*z*ipu,0,7);ctx.stroke();ctx.setLineDash([3,4]);ctx.beginPath();ctx.arc(ip.x,ip.y,5*z,0,7);ctx.stroke();ctx.setLineDash([]);
+   ctx.font='800 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#ffe27a';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText('🕵 בכיר חיזבאללה · '+Math.floor(il/60)+':'+String(Math.floor(il%60)).padStart(2,'0'),ip.x,ip.y-3.6*z-8);ctx.restore()}
+  if(s.intelReveal&&s.time<s.intelReveal.until){var rv=screen(s.intelReveal.x,s.intelReveal.y);ctx.save();ctx.strokeStyle='rgba(255,226,122,'+Math.min(.7,(s.intelReveal.until-s.time)/20)+')';ctx.lineWidth=1.5;ctx.setLineDash([8,6]);ctx.beginPath();ctx.arc(rv.x,rv.y,s.intelReveal.r*z,0,7);ctx.stroke();ctx.restore()}
+  // v6b: night. The screen darkens with dusk; units with night vision keep their vision (the fog shows it).
+  var dkn=S.darkness?S.darkness(s.time):0;if(dkn>0){ctx.fillStyle='rgba(4,8,30,'+(.5*dkn).toFixed(3)+')';ctx.fillRect(0,0,w,h)}
   // The minimap is intentionally at the LEFT, outside the right-hand command dock.
   drawMinimap(s);
  }
@@ -236,24 +244,35 @@ function init(canvas){var ctx=canvas.getContext('2d',{alpha:false}),view={x:35,y
   if(u.type==='post'){ctx.rotate(-(u.facing||0));ctx.fillStyle='#6f7b62';ctx.fillRect(-sz*.7,-sz*.7,sz*1.4,sz*1.4);ctx.strokeRect(-sz*.7,-sz*.7,sz*1.4,sz*1.4);ctx.fillStyle='#c9d7b0';ctx.beginPath();ctx.arc(0,0,sz*.32,0,7);ctx.fill();if(!u.built){ctx.fillStyle='rgba(255,220,90,.8)';ctx.fillRect(-sz*.7,sz*.75,sz*1.4*(1-u.buildT/D.UNITS.post.time),3)}return}
   ctx.fillStyle=body;ctx.beginPath();ctx.arc(0,0,sz,0,7);ctx.fill();ctx.stroke()}
  var mmFog=null,mmFogT=-9,mmFogS=null;
- function drawMinimap(s){var w=94,h=126,ox=8+(view.il||0),oy=view.h-h-8-(view.ib||0);
+ // v6b: the minimap shows the LOCAL area around the camera (MMW×MMH tiles); tapping it opens the full theater map.
+ var MMW=48,MMH=64;
+ function mmWin(){var x0=Math.max(0,Math.min(M.cols-MMW,view.x-MMW/2)),y0=Math.max(0,Math.min(M.rows-MMH,view.y-MMH/2));return{x0,y0}}
+ function drawMinimap(s){var w=94,h=126,ox=8+(view.il||0),oy=view.h-h-8-(view.ib||0),W=mmWin(),x0=W.x0,y0=W.y0,
+   mx=x=>ox+(x-x0)/MMW*w,my=y=>oy+(y-y0)/MMH*h,inb=(x,y)=>x>=x0&&x<=x0+MMW&&y>=y0&&y<=y0+MMH;
    ctx.fillStyle='rgba(8,20,25,.95)';ctx.fillRect(ox-2,oy-2,w+4,h+4);
-   ctx.drawImage(tile,0,0,tile.width,tile.height,ox,oy,w,h);
-   ctx.strokeStyle='#5cc8cc';ctx.lineWidth=1;ctx.strokeRect(ox,oy,w,h);
-   for(var site of s.sites){var x=ox+site.x/M.cols*w,y=oy+site.y/M.rows*h;ctx.fillStyle=site.owner==='il'?'#65e5d0':site.t==='main'?'#ff5655':'#f3ab63';ctx.fillRect(x-1,y-1,site.t==='main'?4:2,site.t==='main'?4:2)}
-   for(var hd of (s.hidden||[]))if(!hd.dead&&hd.revealed){ctx.fillStyle=hd.kind==='tunnel'?'#c58cff':hd.kind==='ied'?'#ff9a3a':'#ffe066';ctx.fillRect(ox+hd.x/M.cols*w-1,oy+hd.y/M.rows*h-1,3,3)}
-   for(var lu of s.units)if(lu.type==='hz_launcher'&&lu.hp>0&&lu.revealed){ctx.fillStyle='#ff4a3a';ctx.fillRect(ox+lu.x/M.cols*w-1.5,oy+lu.y/M.rows*h-1.5,3,3)}
-   // v5: fog (unseen = dark) and the enemy units we can see right now
+   ctx.drawImage(tile,x0/M.cols*tile.width,y0/M.rows*tile.height,MMW/M.cols*tile.width,MMH/M.rows*tile.height,ox,oy,w,h);
+   ctx.save();ctx.beginPath();ctx.rect(ox,oy,w,h);ctx.clip();
+   for(var site of s.sites){if(!inb(site.x,site.y))continue;var x=mx(site.x),y=my(site.y),big=site.t==='main'||site.t==='city';ctx.fillStyle=site.owner==='il'?'#65e5d0':site.t==='main'?'#ff5655':'#f3ab63';ctx.fillRect(x-(big?2:1.5),y-(big?2:1.5),big?4:3,big?4:3)}
+   for(var hd of (s.hidden||[]))if(!hd.dead&&hd.revealed&&inb(hd.x,hd.y)){ctx.fillStyle=hd.kind==='tunnel'?'#c58cff':hd.kind==='ied'?'#ff9a3a':'#ffe066';ctx.fillRect(mx(hd.x)-1.5,my(hd.y)-1.5,3,3)}
+   for(var lu of s.units)if(lu.type==='hz_launcher'&&lu.hp>0&&lu.revealed&&inb(lu.x,lu.y)){ctx.fillStyle='#ff4a3a';ctx.fillRect(mx(lu.x)-2,my(lu.y)-2,4,4)}
+   // fog (unseen = dark) and the enemy units we can see right now
    if(s.fog&&S.visionGrid){if(!mmFog){mmFog=document.createElement('canvas');mmFog.width=M.cols;mmFog.height=M.rows;mmFogT=-9}
     if(Math.abs(s.time-mmFogT)>.5||mmFogS!==s){mmFogT=s.time;mmFogS=s;var vg=S.visionGrid(s),fc=mmFog.getContext('2d'),img=fc.createImageData(M.cols,M.rows);for(var vi=0;vi<vg.length;vi++){img.data[vi*4+3]=vg[vi]?0:150}fc.putImageData(img,0,0)}
-    ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(mmFog,0,0,M.cols,M.rows,ox,oy,w,h);ctx.restore()}
-   for(var eu of s.units){if(eu.side!=='hz'||eu.hp<=0||eu.carriedBy||D.UNITS[eu.type].building||(eu.hidden&&!eu.revealed)||(s.fog&&S.inFog(s,eu.x,eu.y)))continue;ctx.fillStyle='#ff5a4a';ctx.fillRect(ox+eu.x/M.cols*w-1,oy+eu.y/M.rows*h-1,2.4,2.4)}
-   for(var u of s.units)if(u.side==='il'&&u.hp>0&&!u.carriedBy){ctx.fillStyle='#86ffff';ctx.fillRect(ox+u.x/M.cols*w,oy+u.y/M.rows*h,2,2)}
-   var r=world(0,0),b=world(view.w-view.right,view.h);ctx.strokeStyle='#f6efbf';ctx.strokeRect(ox+r.x/M.cols*w,oy+r.y/M.rows*h,(b.x-r.x)/M.cols*w,(b.y-r.y)/M.rows*h);
-   ctx.font='600 9px system-ui';ctx.fillStyle='#e0f3ed';ctx.textAlign='center';ctx.fillText('מיני־מפה',ox+w/2,oy-8);
-   if(s.cityRaid){var mx=ox+s.cityRaid.x/M.cols*w,my=oy+s.cityRaid.y/M.rows*h;ctx.strokeStyle=(s.time*3%2<1)?'#ff3b2f':'#ffd0c0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mx,my,5,0,7);ctx.stroke()}
+    ctx.imageSmoothingEnabled=true;ctx.drawImage(mmFog,x0,y0,MMW,MMH,ox,oy,w,h)}
+   for(var eu of s.units){if(eu.side!=='hz'||eu.hp<=0||eu.carriedBy||D.UNITS[eu.type].building||(eu.hidden&&!eu.revealed)||!inb(eu.x,eu.y)||(s.fog&&S.inFog(s,eu.x,eu.y)))continue;ctx.fillStyle='#ff5a4a';ctx.fillRect(mx(eu.x)-1.5,my(eu.y)-1.5,3,3)}
+   for(var u of s.units)if(u.side==='il'&&u.hp>0&&!u.carriedBy&&inb(u.x,u.y)){ctx.fillStyle=u.prisoner?'#ffd23f':'#86ffff';ctx.fillRect(mx(u.x)-1,my(u.y)-1,u.prisoner?4:3,u.prisoner?4:3)}
+   var r0=world(0,0),b0=world(view.w-view.right,view.h);ctx.strokeStyle='#f6efbf';ctx.lineWidth=1;ctx.strokeRect(mx(r0.x),my(r0.y),(b0.x-r0.x)/MMW*w,(b0.y-r0.y)/MMH*h);
+   var dkm=S.darkness?S.darkness(s.time):0;if(dkm>0){ctx.fillStyle='rgba(4,8,30,'+(.35*dkm).toFixed(3)+')';ctx.fillRect(ox,oy,w,h)}
+   ctx.restore();
+   // blinking markers: city counterattack and intel village; when outside the local window, an arrow on the edge points to it
+   function mark(x,y,col,col2,rad){var bl=(s.time*3%2<1),px=mx(x),py=my(y),inside=inb(x,y);ctx.strokeStyle=bl?col:col2;ctx.fillStyle=bl?col:col2;ctx.lineWidth=2;
+    if(inside){ctx.beginPath();ctx.arc(px,py,rad,0,7);ctx.stroke()}else{var cx=Math.max(ox+4,Math.min(ox+w-4,px)),cy=Math.max(oy+4,Math.min(oy+h-4,py)),an=Math.atan2(py-cy,px-cx);ctx.save();ctx.translate(cx,cy);ctx.rotate(an);ctx.beginPath();ctx.moveTo(5,0);ctx.lineTo(-4,-4);ctx.lineTo(-4,4);ctx.closePath();ctx.fill();ctx.restore()}}
+   if(s.cityRaid)mark(s.cityRaid.x,s.cityRaid.y,'#ff3b2f','#ffd0c0',5);
+   if(s.intel&&s.intel.state==='hiding')mark(s.intel.x,s.intel.y,'#ffd23f','#fff6c8',6);
+   ctx.strokeStyle='#5cc8cc';ctx.lineWidth=1;ctx.strokeRect(ox,oy,w,h);
+   ctx.font='700 9px system-ui';ctx.textAlign='center';ctx.fillStyle='rgba(6,16,22,.85)';ctx.fillRect(ox,oy+h-13,w,13);ctx.fillStyle='#ffe9a0';ctx.fillText('🗺 טאפ = מפת מערכה',ox+w/2,oy+h-3.5);
  }
- function minimapHit(x,y){var ox=8+(view.il||0),oy=view.h-126-8-(view.ib||0);if(x>=ox&&x<=ox+94&&y>=oy&&y<=oy+126)return{x:(x-ox)/94*M.cols,y:(y-oy)/126*M.rows};return null}
+ function minimapHit(x,y){var ox=8+(view.il||0),oy=view.h-126-8-(view.ib||0);if(x>=ox&&x<=ox+94&&y>=oy-14&&y<=oy+126){var W=mmWin();return{x:W.x0+(x-ox)/94*MMW,y:W.y0+(Math.max(oy,y)-oy)/126*MMH,theater:true}}return null}
  resize();return{ctx,view,draw,resize,screen,world,camera,minimapHit,tile};}
  root.LF=root.LF||{};root.LF.render={init};
 })(window);

@@ -2,7 +2,7 @@
 (function(root){'use strict';
 var D = root.LF && root.LF.data || (typeof require === 'function' ? require('./data.js') : null);
 if(!D) throw Error('Map data not loaded');
-var M=D.MAP,U=D.UNITS,T=D.TERRAIN,S=D.SITE_T,DIFF=D.DIFF,H=D.HIDDEN,SUP=D.SUPPLY,AR=D.ARTY,PA=D.PARA,SD=D.SUPPLY_DROP,SWP=D.SWEEP,SM=D.SMART;
+var M=D.MAP,U=D.UNITS,T=D.TERRAIN,S=D.SITE_T,DIFF=D.DIFF,H=D.HIDDEN,SUP=D.SUPPLY,AR=D.ARTY,PA=D.PARA,SD=D.SUPPLY_DROP,SWP=D.SWEEP,SM=D.SMART,DN=D.DAYNIGHT,IN=D.INTEL;
 var clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y), rand=s=>{s.seed=(Math.imul(s.seed,1664525)+1013904223)>>>0;return s.seed/4294967296};
 var clampPos=(p)=>({x:clamp(p.x,0,M.cols-.01),y:clamp(p.y,0,M.rows-.01)});
 var latlonToCoords=arr=>arr.map(p=>D.toTile(p[1],p[0]));
@@ -44,8 +44,16 @@ function make(seed,diff){diff=DIFF[diff]?diff:'normal';var s={version:1,seed:see
 function get(s,id){return s.units.find(u=>u.id===id&&u.hp>0)}
 function alive(s,side){return s.units.filter(u=>u.hp>0&&!u.carriedBy&&(!side||u.side===side))}
 function emit(s,text,kind){if(s.messages[0]!==text)s.messages.unshift(text);s.messages=s.messages.slice(0,6);s.events.push({kind:kind||'message',text,time:s.time})}
+function note(s,text){if(s.messages[0]!==text)s.messages.unshift(text);s.messages=s.messages.slice(0,6)}
+// ===== v6b: day/night. darkness 0 (day) … 1 (night). Game time 0 = morning; 6 min day, 3 min night, 30 s dusk/dawn. =====
+function darkness(t){var c=DN.day+DN.night,f=DN.fade,h=f/2,p=(((t||0)+h)%c+c)%c,sm=x=>x*x*(3-2*x);
+ if(p<h)return 1-sm((p+h)/f);if(p<DN.day-h)return 0;if(p<DN.day+h)return sm((p-(DN.day-h))/f);if(p<c-h)return 1;return 1-sm((p-(c-h))/f)}
+function dayPhase(s){var c=DN.day+DN.night,h=DN.fade/2,p=((s.time+h)%c+c)%c,night=p>=DN.day;return {night,dark:darkness(s.time),left:night?c-p:DN.day-p,len:night?DN.night:DN.day}}
+function nightVis(s,u){var dk=darkness(s.time);return dk&&!(U[u.type]||{}).nv?1-DN.vis*dk:1}
 function grant(s,n){s.money+=n;emit(s,'+'+n+' ₪ לתקציב המלחמה','money')}
-function queue(s,type){var sp=U[type];if(!sp||sp.side!=='il'||!sp.q||s.won||s.lost||s.money<sp.cost||s.queue[sp.q].length>=D.QUEUE_MAX[sp.q])return false;
+function aliveOf(s,type){return s.units.filter(u=>u.type===type&&u.side==='il'&&u.hp>0).length+(s.queue[(U[type]||{}).q]||[]).filter(q=>q.type===type).length}
+function atMax(s,type){var sp=U[type];return !!(sp&&sp.maxAlive&&aliveOf(s,type)>=sp.maxAlive)}
+function queue(s,type){var sp=U[type];if(!sp||sp.side!=='il'||!sp.q||s.won||s.lost||s.money<sp.cost||s.queue[sp.q].length>=D.QUEUE_MAX[sp.q]||atMax(s,type))return false;
  s.money-=sp.cost;s.queue[sp.q].push({type,remaining:sp.time});emit(s,sp.n+' בייצור','queue');return true}
 function buy(s,type){if(!queue(s,type))return false; // "buy" queues only, to respect one-at-a-time vehicles and aircraft.
  return true}
@@ -74,7 +82,7 @@ var GRID={s:null,t:-1,b:null},BS=8,BW=Math.ceil(M.cols/BS),BH=Math.ceil(M.rows/B
 function buckets(s){if(GRID.s===s&&GRID.t===s.time&&GRID.n===s.units.length)return GRID.b;var b=Array.from({length:BW*BH},()=>[]);
  for(var t of s.units){if(t.hp<=0||t.carriedBy)continue;b[clamp(Math.floor(t.y/BS),0,BH-1)*BW+clamp(Math.floor(t.x/BS),0,BW-1)].push(t)}GRID={s,t:s.time,n:s.units.length,b};return b}
 function nearest(s,u,radius,filter){var b=buckets(s),best=null,bd=radius,x0=clamp(Math.floor((u.x-radius)/BS),0,BW-1),x1=clamp(Math.floor((u.x+radius)/BS),0,BW-1),y0=clamp(Math.floor((u.y-radius)/BS),0,BH-1),y1=clamp(Math.floor((u.y+radius)/BS),0,BH-1);
- for(var by=y0;by<=y1;by++)for(var bx=x0;bx<=x1;bx++)for(var t of b[by*BW+bx]){if(t.side===u.side||t.hp<=0||t.carriedBy||(t.hidden&&!t.revealed))continue;if(smokeOn&&u.side==='hz'&&inSmoke(s,t))continue;var d=dist(u,t);if(d>=bd)continue;if(filter&&!filter(t))continue;best=t;bd=d}return best}
+ for(var by=y0;by<=y1;by++)for(var bx=x0;bx<=x1;bx++)for(var t of b[by*BW+bx]){if(t.side===u.side||t.hp<=0||t.carriedBy||(t.hidden&&!t.revealed))continue;if(smokeOn&&u.side==='hz'&&inSmoke(s,t))continue;var d=dist(u,t);if(d>=bd)continue;if(u.side==='hz'&&U[t.type].stealth&&d>U[t.type].stealth.r&&!(t.firedT>s.time))continue;if(filter&&!filter(t))continue;best=t;bd=d}return best}
 function canSee(s,u){if(u.side==='il')return true;return alive(s,'il').some(v=>dist(u,v)<(U[v.type].vision||5)*1.85)}
 function bonus(a,terrainType,defending){var sp=U[a.type],atk=1,def=1;if(sp.bonus==='urban'&&['village','city'].includes(terrainType))atk=D.BONUS.urban.atk,def=D.BONUS.urban.def;
  if(sp.bonus==='forest'&&terrainType==='forest')atk=D.BONUS.forest.atk,def=D.BONUS.forest.def;
@@ -90,7 +98,9 @@ function inflict(s,target,damage,fx,randVal){if(target.hp<=0)return {damage:0,in
  return {damage,intercepted:false}}
 function attack(s,attacker,target,weapon){var a=U[attacker.type],t=U[target.type],factor=weapon.vs[t.armor]||0;if(!factor)return false;if(t.launcher){var vb=H.launcher.vsBy[attacker.type];factor*=vb===undefined?.4:vb}
  var n=a.soldiers?attacker.soldiers:1,terrainType=ground(attacker.x,attacker.y),power=bonus(attacker,terrainType,false).atk*(attacker.sweepT>0?SWP.dmg:1);
- var dmg=weapon.dmg*factor*power*(weapon.perSquad?1:n)*((attacker.side==='hz')?DIFF[s.diff].dmg:1)*(attacker.burstT>0?SM.ambush.burst:1);
+ var dmg=weapon.dmg*factor*power*(weapon.perSquad?1:n)*((attacker.side==='hz')?DIFF[s.diff].dmg:1)*(attacker.burstT>0?SM.ambush.burst:1)*(attacker.strikeT>0&&a.strike?a.strike.dmg:1);
+ var dk=darkness(s.time);if(dk){if(attacker.side==='il'&&a.nv)dmg*=1+(DN.nvAcc-1)*dk;else if(attacker.side==='hz'){dmg*=1-(1-DN.hzAcc)*dk;if(t.transportPlane)dmg*=1-(1-DN.aa)*dk}}
+ if(a.stealth)attacker.firedT=s.time+a.stealth.fire;
  target.lastHit=attacker.type;target.lastBy=attacker.id;target.lastHitT=s.time;var result=inflict(s,target,dmg,weapon.fx);
  if(target.id===s.hq&&s.time-(s.hqAlertT||-99)>25){s.hqAlertT=s.time;emit(s,'⚠ בסיס פיקוד צפון תחת מתקפה!','alert')}s.events.push({kind:'shot',x:attacker.x,y:attacker.y,tx:target.x,ty:target.y,fx:weapon.fx,side:attacker.side,time:s.time});
  if(attacker.ammo!==null&&weapon.fx!=='bullet')attacker.ammo=Math.max(0,attacker.ammo-1);return result}
@@ -129,7 +139,7 @@ function move(s,u,dt){var sp=U[u.type],goal=u.goal;if(!goal||!sp.speed)return;
 function inHealZone(s,u){var hq=get(s,s.hq);if(hq&&dist(u,hq)<6)return true;for(var p of alive(s,'il'))if(p.type==='post'&&p.built!==false&&dist(u,p)<3.5)return true;for(var z of s.sites)if(z.owner==='il'&&dist(u,z)<((S[z.t]&&S[z.t].radius)||3)+1.2)return true;return false}
 function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=Math.max(0,u.flash-dt);u.trophyCd=Math.max(0,u.trophyCd-dt);
  if(u.carriedBy)return;if(sp.transportPlane){planeTick(s,u,dt);return}
- if(u.sweepT>0)u.sweepT=Math.max(0,u.sweepT-dt);if(u.sweepCd>0)u.sweepCd=Math.max(0,u.sweepCd-dt);if(sp.barrage&&u.side==='il')artTick(s,u,dt);
+ if(u.strikeT>0)u.strikeT=Math.max(0,u.strikeT-dt);if(u.strikeCd>0)u.strikeCd=Math.max(0,u.strikeCd-dt);if(u.sweepT>0)u.sweepT=Math.max(0,u.sweepT-dt);if(u.sweepCd>0)u.sweepCd=Math.max(0,u.sweepCd-dt);if(sp.barrage&&u.side==='il')artTick(s,u,dt);
  if(sp.loiter&&!u.flight){u.loiter-=dt;if(u.loiter<=0||(u.route&&u.side==='il'&&u.hp<u.maxHp*PATROL.lowHp)){var base=get(s,s.hq);if(base){u.goal={x:base.x+2,y:base.y-1};u.target=0;u.flight='return';emit(s,sp.n+' חוזר לבסיס לתדלוק','rtb')}else u.hp=0}}
  if(!u.built){u.buildT-=dt;if(u.buildT<=0){u.built=true;emit(s,'עמדת רואה־יורה מוכנה','post')}return}
  if(u.side==='il'&&u.soldiers>0&&u.hp<u.maxHp&&inHealZone(s,u)){u.hp=Math.min(u.maxHp,u.hp+u.maxHp*.035*dt);u.healing=1;if(Math.floor(s.time*2)%6===0&&Math.floor((s.time-dt)*2)%6!==0)s.events.push({kind:'repair',x:u.x,y:u.y,time:s.time})}else u.healing=0;
@@ -143,7 +153,7 @@ function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=M
  if(u.landT>0){u.landT=Math.max(0,u.landT-dt);if(u.landT>0){u.goal=null;return}}
  if(u.route&&u.side==='il')patrolTick(s,u,sp);
  if(u.goal)move(s,u,dt);else u.hold+=dt;
- if(u.side==='hz'&&!sp.building&&!u.goal){var threat=nearest(s,u,(sp.vision||6)*1.25,v=>v.side==='il');var home=u.site&&s.sites.find(q=>q.key===u.site),leash=home?(home.t==='outpost'?7:11):99;
+ if(u.side==='hz'&&!sp.building&&!u.goal){var vr=(sp.vision||6)*1.25,nv0=nightVis(s,u);if(nv0<1)vr=Math.max(vr*nv0,Math.min(vr,(((sp.weapons||[])[0]||{}).range||3)+(DN.hzFloor||0)));var threat=nearest(s,u,vr,v=>v.side==='il');var home=u.site&&s.sites.find(q=>q.key===u.site),leash=home?(home.t==='outpost'?7:11):99;
   if(threat&&dist(u,threat)>(((sp.weapons||[])[0]||{}).range||3)&&(u.raid||!home||dist(threat,home)<leash+(home.t==='outpost'?0:4)))u.goal={x:threat.x,y:threat.y};
   else if(!threat){if(u.raid)u.raid=0;if(home&&home.owner==='hz'&&dist(u,home)>leash)u.goal={x:home.x+(rand(s)-.5)*4,y:home.y+(rand(s)-.5)*4}}}
  // v5 (B1): default stance = hold the sector. Units without orders never chase or charge: they fire at what is inside their own range from where they stand.
@@ -151,7 +161,7 @@ function actUnit(s,u,dt){var sp=U[u.type];u.cool=Math.max(0,u.cool-dt);u.flash=M
  if(sp.kamikaze){var victim=nearest(s,u,(sp.vision||6)*2);if(victim&&dist(u,victim)<1.3){victim.lastHit='drone';inflict(s,victim,sp.kamikaze.dmg*(sp.kamikaze.vs[U[victim.type].armor]||0), 'blast');u.hp=0;s.events.push({kind:'explosion',x:u.x,y:u.y,time:s.time})}return}
  for(var wi=0;wi<sp.weapons.length;wi++){var weapon=sp.weapons[wi];u.weaponCd[wi]=Math.max(0,(u.weaponCd[wi]||0)-dt*(u.side==='hz'&&weapon.fx==='atgm'&&u.site&&CACHE_ON.has(u.site)?H.cache.atgmMul:1));if(u.weaponCd[wi]>0||u.ammo===0)continue;
   var use=u.sup!==null&&u.sup!==undefined?((sp.supply.use||[])[wi]||.3):0;if(use&&u.sup<use)continue;
-  var target=u.target?get(s,u.target):null;if(target&&smokeOn&&u.side==='hz'&&inSmoke(s,target))target=null;if(!target||target.side===u.side||!canHit(u,target,weapon))target=nearest(s,u,weapon.range,v=>canHit(u,v,weapon)&&(!u.route||patrolSuits(u,v)));
+  var target=u.target?get(s,u.target):null;if(target&&smokeOn&&u.side==='hz'&&inSmoke(s,target))target=null;if(!target||target.side===u.side||!canHit(u,target,weapon)){var hush=sp.stealth&&u.side==='il'&&!(u.firedT>s.time)&&!(u.strikeT>0)&&!(u.lastHitT&&s.time-u.lastHitT<sp.stealth.fire);target=nearest(s,u,hush?Math.min(weapon.range,sp.stealth.r+.5):weapon.range,v=>canHit(u,v,weapon)&&(!u.route||patrolSuits(u,v)))}
   if(target){attack(s,u,target,weapon);u.weaponCd[wi]=weapon.cd;if(use){u.sup=Math.max(0,u.sup-use);if(u.sup<.3&&!u.outA){u.outA=1;emit(s,sp.n+': נגמרה התחמושת! חזרו לבסיס או הביאו משאית','supply')}}if((sp.jet||sp.ammo)&&u.ammo===0){var home=get(s,s.hq);if(home){u.goal={x:home.x,y:home.y};u.flight='return'}break}}}
 }
 
@@ -169,10 +179,10 @@ function setupHidden(s){s.hidden=[];var hq=get(s,s.hq)||{x:40,y:112},n=0;
 function launchers(s){return s.units.filter(u=>u.hp>0&&u.type==='hz_launcher')}
 function launchersAlive(s){return launchers(s).length}
 function liveCaches(s){var c=new Set();for(var h of s.hidden||[])if(h.kind==='cache'&&!h.dead)c.add(h.site);return c}
-function revealRadius(v,H0){var sp=U[v.type];if(sp.engineer)return H0.revealEng;if(v.type==='uav_recon')return H0.revealUav;if(sp.move==='air')return H0.reveal*.8;return H0.reveal}
-function reveal(s){var il=alive(s,'il').filter(v=>!U[v.type].building||v.type==='post'),list=(s.hidden||[]).filter(h=>!h.dead&&!h.revealed).concat(launchers(s).filter(u=>!u.revealed));
- for(var h of list){var kind=h.kind||'launcher',H0=H[kind];for(var v of il)if(Math.hypot(v.x-h.x,v.y-h.y)<revealRadius(v,H0)){h.revealed=1;var text='נחשף '+H0.n+(h.area?' ב'+h.area:' ליד '+h.name)+(kind==='launcher'?' · תקפו אותו (מטוס/מל״ט תקיפה הכי טובים)':kind==='ied'?' · רכבים: לא לעבור! הנדסה תנטרל אותו':' · הנדסה תפוצץ אותו');emit(s,text,'reveal');s.events.push({kind:'reveal',hk:kind,x:h.x,y:h.y,text,time:s.time});break}}
- for(var e of (s.hidden||[])){if(e.kind!=='tunnel'||e.dead||e.exitDead||e.exitSeen||e.revealed)continue;for(var v of il)if(Math.hypot(v.x-e.ex,v.y-e.ey)<revealRadius(v,H.tunnel)){e.exitSeen=1;var tx='נחשפה יציאת מנהרה (הפיר ליד '+e.name+') · הנדסה יכולה לאטום אותה';emit(s,tx,'reveal');s.events.push({kind:'reveal',hk:'exit',x:e.ex,y:e.ey,text:tx,time:s.time});break}}}
+function revealRadius(v,H0,dk){var sp=U[v.type],r=sp.engineer?H0.revealEng:v.type==='uav_recon'?H0.revealUav:sp.move==='air'?H0.reveal*.8:H0.reveal;if(sp.detect)r=Math.max(r,sp.detect);if(dk&&!sp.nv)r*=1-DN.spot*dk;return r}
+function reveal(s){var dk=darkness(s.time),il=alive(s,'il').filter(v=>!U[v.type].building||v.type==='post'),list=(s.hidden||[]).filter(h=>!h.dead&&!h.revealed).concat(launchers(s).filter(u=>!u.revealed));
+ for(var h of list){var kind=h.kind||'launcher',H0=H[kind];for(var v of il)if(Math.hypot(v.x-h.x,v.y-h.y)<revealRadius(v,H0,dk)){h.revealed=1;var text='נחשף '+H0.n+(h.area?' ב'+h.area:' ליד '+h.name)+(kind==='launcher'?' · תקפו אותו (מטוס/מל״ט תקיפה הכי טובים)':kind==='ied'?' · רכבים: לא לעבור! הנדסה תנטרל אותו':' · הנדסה תפוצץ אותו');emit(s,text,'reveal');s.events.push({kind:'reveal',hk:kind,x:h.x,y:h.y,text,time:s.time});break}}
+ for(var e of (s.hidden||[])){if(e.kind!=='tunnel'||e.dead||e.exitDead||e.exitSeen||e.revealed)continue;for(var v of il)if(Math.hypot(v.x-e.ex,v.y-e.ey)<revealRadius(v,H.tunnel,dk)){e.exitSeen=1;var tx='נחשפה יציאת מנהרה (הפיר ליד '+e.name+') · הנדסה יכולה לאטום אותה';emit(s,tx,'reveal');s.events.push({kind:'reveal',hk:'exit',x:e.ex,y:e.ey,text:tx,time:s.time});break}}}
 // Engineers blow ONLY the object the player picked (shaft, store or tunnel exit). Nothing automatic.
 function hiddenTargets(s){var out=[];for(var h of s.hidden||[]){if(h.dead)continue;if(h.revealed)out.push({key:h.id,kind:h.kind,x:h.x,y:h.y,name:h.name,h});
   if(h.kind==='tunnel'&&!h.exitDead&&(h.revealed||h.exitSeen))out.push({key:h.id+'x',kind:'exit',x:h.ex,y:h.ey,name:h.name,h})}return out}
@@ -259,7 +269,7 @@ function ai(s,dt){var hzAll=alive(s,'hz'),mobile=hzAll.filter(v=>!U[v.type].buil
 function capture(s,dt){for(var site of s.sites){if(site.owner==='il')continue;var rule=S[site.t];var present=alive(s,'il').filter(u=>u.soldiers>0&&dist(u,site)<rule.radius+1.2);
  var guards=alive(s,'hz').filter(u=>!U[u.type].building&&u.type!=='drone'&&dist(u,site)<rule.radius+3.4);
  // Destroy HQ + clear defenders, then hold with infantry; tanks cannot capture.
- if(!get(s,site.building)&&guards.length===0&&present.length){site.capture+=dt*(1+(present.length-1)*.2);
+ if(!get(s,site.building)&&guards.length===0&&present.length){site.capture+=dt*(1+(present.length-1)*.2)*(present.some(u=>u.strikeT>0&&U[u.type].strike)?Math.max(...present.filter(u=>u.strikeT>0&&U[u.type].strike).map(u=>U[u.type].strike.cap)):1);
   if(site.capture>=rule.capture){site.owner='il';site.capture=rule.capture;s.captures++;grant(s,rule.bounty);emit(s,site.n+' נכבשה!','capture');s.events.push({kind:'city',key:site.key,name:site.n,time:s.time});
    if(site.t==='city')emit(s,site.n+' היא עכשיו בסיס קדמי: יחידות חדשות יוצאות ממנה','forward');
    if(site.key==='beirut'){s.won=true;emit(s,'ניצחון! ביירות נכבשה — חזית לבנון הוכרעה','win')}}}
@@ -281,8 +291,10 @@ var VIS={s:null,t:-9,g:null};
 function vision(s){if(VIS.s===s&&Math.abs(s.time-VIS.t)<.25&&VIS.g)return VIS.g;var g=VIS.s===s&&VIS.g?VIS.g.fill(0):new Uint8Array(M.cols*M.rows);
  function mark(cx,cy,r){var x0=Math.max(0,Math.floor(cx-r)),x1=Math.min(M.cols-1,Math.ceil(cx+r)),y0=Math.max(0,Math.floor(cy-r)),y1=Math.min(M.rows-1,Math.ceil(cy+r)),r2=r*r;
   for(var y=y0;y<=y1;y++)for(var x=x0;x<=x1;x++){var dx=x+.5-cx,dy=y+.5-cy;if(dx*dx+dy*dy<r2)g[y*M.cols+x]=1}}
- for(var u of s.units)if(u.side==='il'&&u.hp>0&&!u.carriedBy)mark(u.x,u.y,(U[u.type].vision||5)*1.9);
- for(var site of s.sites)if(site.owner==='il')mark(site.x,site.y,10);VIS={s,t:s.time,g};return g}
+ var dk=darkness(s.time),sv=10*(1-(1-DN.siteVis)*dk);
+ for(var u of s.units)if(u.side==='il'&&u.hp>0&&!u.carriedBy)mark(u.x,u.y,(U[u.type].vision||5)*1.9*(dk&&!U[u.type].nv?1-DN.vis*dk:1));
+ for(var site of s.sites)if(site.owner==='il')mark(site.x,site.y,sv);
+ if(s.intelReveal&&s.time<s.intelReveal.until)mark(s.intelReveal.x,s.intelReveal.y,s.intelReveal.r);VIS={s,t:s.time,g};return g}
 function inFog(s,x,y){if(!s.fog)return false;if(x<0||y<0||x>=M.cols||y>=M.rows)return true;return !vision(s)[Math.floor(y)*M.cols+Math.floor(x)]}
 function upgrade(o){if(o.hidden&&!o.v5)setupSmart(o,o.hidden.length+100);o.strikes=o.strikes||[];o.smokes=o.smokes||[];o.crates=o.crates||[];for(var u of o.units){var sp=U[u.type];if(!sp)continue;if(u.sup===undefined)u.sup=sp.supply&&sp.supply.ammo?sp.supply.ammo:null;if(u.fuel===undefined)u.fuel=sp.supply&&sp.supply.fuel?sp.supply.fuel:null}if(!o.hidden)setupHidden(o);return o}
 function save(s){var o={...s,events:[],units:s.units.filter(u=>u.hp>0||u.id===s.hq)};return JSON.stringify(o)}
@@ -370,9 +382,11 @@ function setupSmart(s,n0){if(!s.hidden)s.hidden=[];var hq=get(s,s.hq)||{x:40,y:1
   var g=ground(q.x,q.y);if(!['forest','village','hills','open','beach'].includes(g)||!canPass(q.x,q.y,'hz_inf')||!inLebanon(q)||dist(q,hq)<am.minHq||q.y>hq.y-6||siteNear(q,4.5)||pl.some(o=>dist(o,q)<am.gap))continue;
   var type=am.types[pl.length%am.types.length],u=makeUnit(s,type,'hz',q.x,q.y,{});u.hidden=1;u.revealed=0;u.ambush=1;u.hold=3;pl.push(q)}}
 function ambushTick(s,u){var near=nearest(s,u,SM.ambush.trigger,v=>U[v.type].move!=='air'&&!U[v.type].building),hit=u.lastHitT&&s.time-u.lastHitT<1.5;
- if(!near&&!hit){if(!u.revealed){var eye=nearest(s,u,SM.ambush.uavSpot,v=>v.type==='uav_recon');if(eye){u.revealed=1;var t0='👁 מל״ט סיור זיהה מארב של חיזבאללה ליד הדרך';emit(s,t0,'reveal');s.events.push({kind:'reveal',hk:'ambush',x:u.x,y:u.y,text:t0,time:s.time})}}return}
+ if(!near&&!hit){if(!u.revealed){var eye=nearest(s,u,SM.ambush.uavSpot,v=>v.type==='uav_recon'),mk=eye?null:spotter(s,u);if(eye||mk){u.revealed=1;var t0=mk?'👁 סיירת מטכ״ל זיהתה מארב של חיזבאללה ליד הדרך':'👁 מל״ט סיור זיהה מארב של חיזבאללה ליד הדרך';emit(s,t0,'reveal');s.events.push({kind:'reveal',hk:'ambush',x:u.x,y:u.y,text:t0,time:s.time})}}return}
  var t1='⚠ מארב! חוליית חיזבאללה פתחה באש מהשטח';emit(s,t1,'ambush');s.events.push({kind:'ambush',x:u.x,y:u.y,text:t1,time:s.time});s.stats.ambushes=(s.stats.ambushes||0)+1;
  for(var o of s.units)if(o.ambush===1&&o.hp>0&&dist(o,u)<6){o.ambush=2;o.revealed=1;o.burstT=SM.ambush.burstT;o.weaponCd=[]}}
+// Units with sp.detect (Sayeret Matkal) spot hidden ambush squads within that radius (they are not seen by them, so no nearest()).
+function spotter(s,u){for(var v of s.units){if(v.side!=='il'||v.hp<=0||v.carriedBy)continue;var sp=U[v.type];if(sp.detect&&dist(u,v)<sp.detect)return v}return null}
 function iedTick(s,dt){s.iedT=(s.iedT||0)+dt;if(s.iedT<.2)return;s.iedT=0;
  for(var h of s.hidden||[]){if(h.kind!=='ied'||h.dead||h.revealed)continue;var v=null;
   for(var u of s.units){if(u.side!=='il'||u.hp<=0||u.carriedBy)continue;var sp=U[u.type];if(sp.cls!=='veh'||sp.move==='air'||sp.building||sp.transportPlane)continue;if(Math.hypot(u.x-h.x,u.y-h.y)<SM.ied.trigger){v=u;break}}
@@ -422,8 +436,41 @@ function recapture(s,dt){var R=SM.retake,hz=null,il=null;for(var z of s.sites){i
   z.lostT=(z.lostT||0)+dt;if(z.lostT<R.hold)continue;z.lostT=0;z.owner='hz';z.capture=0;s.captures=Math.max(0,s.captures-1);var rule=S[z.t];z.prod=rule.prod;
   var b=makeUnit(s,rule.bld,'hz',z.x,z.y,{site:z.key});b.hp*=.5;z.building=b.id;s.stats.lostSites=(s.stats.lostSites||0)+1;
   for(var u of hz)if(dist(u,z)<r+3||u.retake===z.key){u.site=z.key;u.raid=0;u.retake=0;u.goal=null;u.hold=1}if(s.retake&&s.retake.key===z.key)s.retake=null;if(s.cityRaid&&s.cityRaid.key===z.key)s.cityRaid=null;
-  var tx='⚠ '+z.n+' נכבשה מחדש בידי חיזבאללה! צריך לכבוש אותה שוב';emit(s,tx,'lostsite');s.events.push({kind:'lostsite',key:z.key,x:z.x,y:z.y,text:tx,time:s.time})}}
-function v5Tick(s,dt){if(!s.v5&&s.hidden)setupSmart(s,s.hidden.length+100);iedTick(s,dt);retakeTick(s,dt);cityRaidTick(s,dt);s.recT=(s.recT||0)+dt;if(s.recT>=.5){recapture(s,s.recT);s.recT=0}}
+  var tx='⚠ '+z.n+' נכבשה מחדש בידי חיזבאללה! צריך לכבוש אותה שוב';note(s,tx);s.events.push({kind:'lostsite',key:z.key,x:z.x,y:z.y,text:tx,time:s.time})}}
+function v5Tick(s,dt){if(!s.v5&&s.hidden)setupSmart(s,s.hidden.length+100);iedTick(s,dt);retakeTick(s,dt);cityRaidTick(s,dt);v6Tick(s,dt);s.recT=(s.recT||0)+dt;if(s.recT>=.5){recapture(s,s.recT);s.recT=0}}
+// ===== v6b: Sayeret Matkal "⚡ פשיטה" (2× capture speed and 2× damage for 15 s, cooldown 90 s) =====
+function strikeOrder(s,ids){var n=0,cd=0,none=0;for(var id of ids||[]){var u=get(s,id);if(!u||u.side!=='il'||u.hp<=0||!U[u.type].strike){continue}if(u.carriedBy){none++;continue}if(u.strikeCd>0){cd++;continue}var st=U[u.type].strike;u.strikeT=st.dur;u.strikeCd=st.cd;n++}
+ if(n){var tx='⚡ פשיטה! '+U.matkal.n+': כיבוש פי '+U.matkal.strike.cap+' מהר ונזק כפול ל-'+U.matkal.strike.dur+' שניות';emit(s,tx,'strike');s.events.push({kind:'strike',n,time:s.time})}
+ return {n,reason:n?'':cd?'cooldown':'none'}}
+// ===== v6b: intel on a senior Hezbollah commander hiding in a village =====
+function intelFront(s){var pts=alive(s,'il').filter(u=>!U[u.type].building&&U[u.type].move!=='air').map(u=>({x:u.x,y:u.y}));for(var z of s.sites)if(z.owner==='il')pts.push(z);var hq=get(s,s.hq);if(hq)pts.push(hq);return pts}
+function intelStart(s,key){if(s.intel)return null;var z=key?s.sites.find(q=>q.key===key):null;
+ if(!z){var front=intelFront(s),cand=s.sites.filter(q=>q.owner==='hz'&&q.t==='village');if(!cand.length)return null;
+  var score=q=>Math.min(...front.map(p=>dist(p,q)));cand.sort((a,b)=>score(a)-score(b));cand=cand.slice(0,IN.pick);z=cand[Math.floor(rand(s)*cand.length)]}
+ if(!z||z.owner!=='hz')return null;
+ s.intel={key:z.key,n:z.n,x:z.x,y:z.y,state:'hiding',t0:s.time,until:s.time+IN.timer,carrier:0,matkal:false};s.stats.intel=(s.stats.intel||0)+1;
+ var tx='🕵 בכיר חיזבאללה מסתתר ב'+z.n+' · '+Math.round(IN.timer/60)+' דק׳ לכבוש את הכפר ולהחזיר את הכוח שתפס אותו לבסיס או לעיר בארץ';
+ s.intel.text=tx;note(s,tx);s.events.push({kind:'intel',sub:'start',key:z.key,x:z.x,y:z.y,text:tx,time:s.time});return s.intel}
+function intelCaptor(s,z){var r=(S[z.t].radius||2.5)+1.2,best=null,bd=1e9;for(var u of alive(s,'il')){if(!(u.soldiers>0)||u.carriedBy||U[u.type].building)continue;var d=dist(u,z)-(U[u.type].stealth?100:0);if(dist(u,z)<r+3&&d<bd){bd=d;best=u}}
+ if(!best)for(var u of alive(s,'il')){if(!(u.soldiers>0)||U[u.type].building)continue;var d=dist(u,z);if(d<9&&d<bd){bd=d;best=u}}return best}
+function intelHome(s,p){var hq=get(s,s.hq);if(hq&&dist(p,hq)<IN.deliver+1)return 'בסיס פיקוד צפון';for(var t of D.IL_TOWNS){var q=D.toTile(t[2],t[1]);q={x:clamp(q.x,0,M.cols-.5),y:clamp(q.y,0,M.rows-.5)};if(dist(p,q)<IN.deliver)return t[0]}return ''}
+function intelEnd(s,why){var it=s.intel;if(!it)return;var c=it.carrier&&get(s,it.carrier);if(c)c.prisoner=0;s.intel=null;s.intelT=IN.every;
+ var tx=why==='dead'?'🏃 הכוח שהחזיק את הבכיר נפגע · הבכיר ברח':'🏃 הזמן נגמר · הבכיר מ'+it.n+' ברח';note(s,tx);s.stats.intelLost=(s.stats.intelLost||0)+1;s.events.push({kind:'intel',sub:'escaped',key:it.key,x:it.x,y:it.y,text:tx,time:s.time})}
+function intelReveal(s,x,y,r){var n=0;for(var h of s.hidden||[]){if(h.dead)continue;if(!h.revealed&&Math.hypot(h.x-x,h.y-y)<r){h.revealed=true;n++}if(h.kind==='tunnel'&&!h.exitDead&&!h.exitSeen&&(h.revealed&&Math.hypot(h.x-x,h.y-y)<r||Math.hypot(h.ex-x,h.ey-y)<r)){h.exitSeen=1;n++}}
+ for(var u of s.units)if(u.side==='hz'&&u.hp>0&&u.hidden&&!u.revealed&&Math.hypot(u.x-x,u.y-y)<r){u.revealed=1;n++}
+ s.intelReveal={x,y,r,until:s.time+IN.revealT};VIS.t=-9;return n}
+function intelTick(s,dt){if(s.won||s.lost)return;if(s.intelT===undefined)s.intelT=IN.first;var it=s.intel;
+ if(!it){s.intelT-=dt;if(s.intelT<=0){if(!intelStart(s))s.intelT=30}return}
+ var z=s.sites.find(q=>q.key===it.key);if(!z){s.intel=null;s.intelT=IN.every;return}
+ if(it.state==='hiding'){if(s.time>=it.until)return intelEnd(s,'timeout');
+  if(z.owner==='il'){var c=intelCaptor(s,z);if(!c)return;c.prisoner=1;it.state='carried';it.carrier=c.id;it.matkal=!!U[c.type].stealth;
+   var tx='⛓ הבכיר נתפס ב'+z.n+' בידי '+U[c.type].n+'! החזירו אותם לבסיס או לעיר בארץ לפני שהזמן נגמר';note(s,tx);s.events.push({kind:'intel',sub:'caught',id:c.id,x:c.x,y:c.y,text:tx,time:s.time})}return}
+ var c=get(s,it.carrier);if(!c||c.hp<=0)return intelEnd(s,'dead');if(s.time>=it.until)return intelEnd(s,'timeout');
+ var p=c.carriedBy?(get(s,c.carriedBy)||c):c,home=intelHome(s,p);if(!home)return;
+ var pay=Math.round(IN.reward*(it.matkal?1+IN.matkalBonus:1));s.money+=pay;c.prisoner=0;var found=intelReveal(s,it.x,it.y,IN.reveal);s.intel=null;s.intelT=IN.every;s.stats.intelWon=(s.stats.intelWon||0)+1;
+ var tx='🎖 הבכיר נמסר ב'+home+'! +'+pay.toLocaleString('en-US')+' ₪'+(it.matkal?' (כולל בונוס מטכ״ל +50%)':'')+' · המודיעין חשף את האזור סביב '+it.n+(found?' ('+found+' יעדים)':'');
+ note(s,tx);s.events.push({kind:'intel',sub:'done',pay,x:it.x,y:it.y,text:tx,time:s.time})}
+function v6Tick(s,dt){intelTick(s,dt)}
 // Control groups 1-4 (stored on the units, so they survive saves). A unit belongs to one group at a time.
 function setCtrlGroup(s,n,ids){n=n|0;if(n<1||n>D.CTRL.groups)return 0;var set=new Set(ids),k=0;for(var u of s.units){if(u.side!=='il')continue;if(set.has(u.id)&&u.hp>0&&!U[u.type].building){u.cg=n;k++}else if(u.cg===n)u.cg=0}return k}
 function ctrlGroup(s,n){return s.units.filter(u=>u.side==='il'&&u.hp>0&&!u.carriedBy&&u.cg===n).map(u=>u.id)}
@@ -440,7 +487,7 @@ function command(s,o){var ids=o.ids||[];switch(o.kind){
  case 'move':return setOrder(s,ids,o.p,0);case 'attack':return attackOrder(s,ids,o.target,o.p);case 'blow':return blowOrder(s,ids,o.key);
  case 'deploy':return deployOrder(s,ids,o.p||null);case 'fire':case 'smoke':return artyFire(s,ids,o.p,o.kind);case 'drop':return dropOrder(s,ids,o.p);
  case 'supply':return supplyDrop(s,o.p);case 'route':return setRoute(s,ids,o.points);case 'pack':return packOrder(s,ids);case 'hold':return hold(s,ids);
- case 'sweep':return sweepOrder(s,ids);case 'load':return load(s,o.tid,ids);case 'unload':return ids.reduce((a,id)=>a+unload(s,id),0);case 'build':return buildPost(s,ids[0])}return null}
+ case 'sweep':return sweepOrder(s,ids);case 'load':return load(s,o.tid,ids);case 'unload':return ids.reduce((a,id)=>a+unload(s,id),0);case 'build':return buildPost(s,ids[0]);case 'strike':return strikeOrder(s,ids)}return null}
 function coordStart(s){if(!s.coord)s.coord={orders:[],t0:s.time};return s.coord}
 function coordCancel(s){var n=s.coord?s.coord.orders.length:0;s.coord=null;return n}
 function coordExec(s){if(!s.coord)return [];var list=s.coord.orders;s.coord=null;var out=list.map(o=>command(s,o));if(list.length){emit(s,'⚔ התקפה מתואמת: '+list.length+' פקודות יצאו בבת אחת','coord');s.events.push({kind:'coord',n:list.length,time:s.time})}return out}
@@ -459,7 +506,7 @@ function attacksText(type){var sp=U[type];if(!sp)return '';if(sp.supplier)return
 // Order buttons for a selection (union over the unit types). hold/group/split are always offered.
 function actionsFor(units){var a=new Set(['stop','group','split']);for(var u of units||[]){var sp=U[u.type];if(!sp)continue;
   if(sp.engineer){a.add('blow');a.add('build')}if(sp.para){a.add('drop')}if(sp.barrage){a.add('deploy');a.add('fire');a.add('smoke');a.add('pack')}
-  if(sp.carry){a.add('load');a.add('unload')}if(u.soldiers>0)a.add('load');if(canPatrol(u))a.add('route');if(sp.sweep)a.add('sweep')}return a}
-var api={inLebanon,setupSmart,ambushTick,iedTick,retakeTick,cityRaidTick,recapture,setCtrlGroup,ctrlGroup,attackOrder,command,coordStart,coordCancel,coordExec,order,visionGrid,SM,inSmoke,art,isArty,deployOrder,packOrder,artyFire,inArtyRange,barrageImpact,dropOrder,canBoard,supplyDrop,crateLand,isUrban,sweepOrder,vsTable,canDamage,attacksText,actionsFor,ARMOR_N,setRoute,hold,canPatrol,patrolSuits,hiddenTargets,findHidden,hiddenAt,sealExit,PATROL,setupHidden,launchers,launchersAlive,blowOrder,blowUp,supplyZones,inSupplyZone,supplyLevel,liveCaches,upgrade,forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
+  if(sp.carry){a.add('load');a.add('unload')}if(u.soldiers>0)a.add('load');if(canPatrol(u))a.add('route');if(sp.sweep)a.add('sweep');if(sp.strike)a.add('strike')}return a}
+var api={darkness,dayPhase,nightVis,note,strikeOrder,intelStart,intelTick,intelEnd,intelHome,intelReveal,intelCaptor,v6Tick,spotter,aliveOf,atMax,inLebanon,setupSmart,ambushTick,iedTick,retakeTick,cityRaidTick,recapture,setCtrlGroup,ctrlGroup,attackOrder,command,coordStart,coordCancel,coordExec,order,visionGrid,SM,inSmoke,art,isArty,deployOrder,packOrder,artyFire,inArtyRange,barrageImpact,dropOrder,canBoard,supplyDrop,crateLand,isUrban,sweepOrder,vsTable,canDamage,attacksText,actionsFor,ARMOR_N,setRoute,hold,canPatrol,patrolSuits,hiddenTargets,findHidden,hiddenAt,sealExit,PATROL,setupHidden,launchers,launchersAlive,blowOrder,blowUp,supplyZones,inSupplyZone,supplyLevel,liveCaches,upgrade,forwardBase,flowField,D,terrain,ground,coast,river,bridges,tileAt,dist,clamp,canPass,make,makeUnit,get,alive,step,buy,queue,setOrder,group,split,load,unload,buildPost,bonus,inflict,attack,capture,inFog,save,restore,grant,emit};
 root.LF=root.LF||{};root.LF.sim=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

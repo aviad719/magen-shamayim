@@ -32,9 +32,10 @@ test('RTS: ⚔ coordinated attack: banner, map taps are queued (dashed), ✓ ב�
  await p.evaluate(id=>{const u=LEBANON.state.units.find(v=>v.id===id);u.goal=null;LEBANON.select(id)},id);await p.click('#coordBtn');await p.mouse.click(pt.x+30,pt.y);await p.click('#coordCancel');
  st=await p.evaluate(id=>{const s=LEBANON.state,u=s.units.find(v=>v.id===id);return {coord:!!s.coord,goal:!!u.goal}},id);assert.deepStrictEqual(st,{coord:false,goal:false},'cancelled');assert.deepStrictEqual(errs,[]);await ctx.close()});
 
-test('RTS: tapping the minimap jumps the camera',{skip},async()=>{const {p,errs,ctx}=await page('rts/');await p.evaluate(()=>{LEBANON.start(false)});await p.waitForTimeout(200);
- const v0=await p.evaluate(()=>LEBANON.renderer.view.y);const box=await p.evaluate(()=>{const v=LEBANON.renderer.view;return {x:8+(v.il||0)+47,y:v.h-126-8-(v.ib||0)+10}});await p.mouse.click(box.x,box.y);await p.waitForTimeout(60);
- const v1=await p.evaluate(()=>LEBANON.renderer.view.y);assert.ok(v1<v0-30,'jumped north: '+v0+' → '+v1);assert.deepStrictEqual(errs,[]);await ctx.close()});
+test('RTS: tapping the minimap opens the theater map (v6b); a tap on the Lebanon front jumps the camera',{skip},async()=>{const {p,errs,ctx}=await page('rts/');await p.evaluate(()=>{LEBANON.start(false)});await p.waitForTimeout(200);
+ const v0=await p.evaluate(()=>LEBANON.renderer.view.y);const box=await p.evaluate(()=>{const v=LEBANON.renderer.view;return {x:8+(v.il||0)+47,y:v.h-126-8-(v.ib||0)+10}});await p.mouse.click(box.x,box.y);await p.waitForTimeout(120);
+ assert.ok(await p.isVisible('#theater'),'theater map open');const L=await p.evaluate(()=>LEBANON.theaterLayout.inset);await p.mouse.click(L.x+L.w/2,L.y+8);await p.waitForTimeout(80);
+ assert.ok(!(await p.isVisible('#theater')),'closed after the jump');const v1=await p.evaluate(()=>LEBANON.renderer.view.y);assert.ok(v1<v0-30,'jumped north: '+v0+' → '+v1);assert.deepStrictEqual(errs,[]);await ctx.close()});
 
 test('TD: tapping your battery opens the upgrade panel; the buttons upgrade and show stars',{skip},async()=>{const {p,errs,ctx}=await page('');
  await p.evaluate(()=>{const G=GAME;G.newGame('normal');G.camTo('israel',true);G.S.budget=3000;G.placeTower('dome',34.82,32.05)});await p.waitForTimeout(400);
