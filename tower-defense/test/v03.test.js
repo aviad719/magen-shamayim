@@ -23,10 +23,10 @@ test('Judea & Samaria and the Golan are placeable Israeli territory; Jordan, Syr
 
 test('13 specialised sites (10 Iran, 3 Yemen); each threat spawns only from a site that launches its type',()=>{
   const {G}=boot();seed(7);G.newGame('normal');const L=G.S.launchers;
-  assert.equal(L.filter(l=>l.cc==='IR').length,10);assert.equal(L.filter(l=>l.cc==='YE').length,3);
+  assert.equal(L.filter(l=>l.cc==='IR').length,10);assert.equal(L.filter(l=>l.cc==='YE').length,3);assert.equal(L.filter(l=>l.cc==='IQ').length,1,'v6: one Iraqi militia site (swarms)');
   for(const k of ['D','C','B']){assert.ok(L.some(l=>l.cc==='IR'&&l.kind===k),'Iran has '+k);assert.ok(L.some(l=>l.cc==='YE'&&l.kind===k),'Yemen has '+k)}
-  assert.deepEqual([...G.LTYPES.D.makes],['drone','uav']);assert.deepEqual([...G.LTYPES.C.makes],['uav','cruise']);assert.deepEqual([...G.LTYPES.B.makes],['ballistic','cruise']);
-  for(let n=1;n<=8;n++){G.S.wave=n-1;for(let r=0;r<5;r++)for(const e of G.buildWave(n)){const l=L[e.li];assert.ok(G.LTYPES[l.kind].makes.includes(e.type),e.type+' from '+l.n+' ('+l.kind+') in wave '+n);if(n<4)assert.equal(l.cc,'IR','no Yemen before wave 4')}}
+  /* v6: D sites also launch swarms, B sites also hypersonic + MIRV */assert.deepEqual([...G.LTYPES.D.makes],['drone','uav','swarm']);assert.deepEqual([...G.LTYPES.C.makes],['uav','cruise']);assert.deepEqual([...G.LTYPES.B.makes],['ballistic','cruise','hyper','mirv']);
+  for(let n=1;n<=8;n++){G.S.wave=n-1;for(let r=0;r<5;r++)for(const e of G.buildWave(n)){const l=L[e.li];assert.ok(G.LTYPES[l.kind].makes.includes(e.type),e.type+' from '+l.n+' ('+l.kind+') in wave '+n);if(n<4)assert.ok(l.cc==='IR'||(l.cc==='IQ'&&e.type==='swarm'),'no Yemen before wave 4');if(l.cc==='IQ')assert.equal(e.type,'swarm','Iraq: swarms only')}}
   // live play: spawned threats come from matching sites
   G.S.wave=4;for(const c of G.S.cities){c.hp=99}G.startWave();let seen=0;for(let i=0;i<70*30&&G.S.inWave;i++){G.step(1/30);for(const t of G.S.threats){const l=L[t.from];assert.ok(G.LTYPES[l.kind].makes.includes(t.type));seen++}}assert.ok(seen>0);
 });

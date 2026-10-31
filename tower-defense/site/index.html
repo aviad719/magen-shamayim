@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>מגן השמיים · הגנה אווירית מול איראן</title>
-<meta name="description" content="משחק Tower Defense בדפדפן: הגנו על ישראל מרחפנים, מל״טים, טילי שיוט וטילים בליסטיים עם כיפת ברזל, שרביט קסמים, חץ ומגן אור.">
+<meta name="description" content="משחק Tower Defense בדפדפן: הגנו על ישראל מרחפנים, נחילי כטב״מים, טילי שיוט, טילים בליסטיים והיפרסוניים עם כיפת ברזל, שרביט קסמים, חץ ומגן אור.">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -34,6 +34,7 @@
       <button class="tw" data-t="beam"><span class="sw beam"></span><b>מגן אור</b><small>₪250</small></button>
       <button class="tw" data-t="sling"><span class="sw sling"></span><b>שרביט קסמים</b><small>₪300</small></button>
       <button class="tw" data-t="arrow"><span class="sw arrow"></span><b>חץ</b><small>₪450</small></button>
+      <button class="tw radar" data-t="radar"><span class="sw radar"></span><b>אורן ירוק</b><small id="radarCnt">₪600 · 0/3</small></button>
       <button id="btnAir" class="tw air"><span class="sw jet"></span><b>חיל האוויר</b><small id="airLock">🔒 גל 4</small></button>
     </div>
     <div id="pAir" class="pane hidden">
@@ -49,6 +50,9 @@
   <div id="alert" class="hidden">⚠ שיגור בליסטי</div>
   <div id="lbLine" class="hidden"></div>
   <button id="btnNext" class="hidden">התחל גל 1 ▶</button>
+  <button id="btnIaf" class="hidden">✈ תקיפת ח״א ₪800</button>
+  <div id="ecoPanel" class="hidden" role="status" aria-label="סיכום הכנסות"></div>
+  <div id="v6Panel" class="hidden" role="dialog" aria-label="פרטים"></div>
   <div id="offer" class="hidden" role="dialog" aria-labelledby="offerTitle"><div class="ocard"><h3 id="offerTitle">בקשת רכש</h3><p id="offerText"></p><div class="orow"><button id="offerNo">סרב</button><button id="offerYes" class="primary">קבל ובחר סוללה ←</button></div></div></div>
   <div id="upPanel" class="hidden" role="dialog" aria-label="שדרוג סוללה"></div>
   <div id="sellBar" class="hidden"><span id="sellText"></span><button id="sellCancel" aria-label="ביטול">✕</button></div>
@@ -63,6 +67,13 @@
       <div class="startRow"><button id="btnContinue" class="primary alt hidden">המשך משחק ▶</button><button id="btnStart" class="primary">משחק חדש ▶</button></div>
       <p id="bestLine" class="best"></p>
       <ul>
+        <li class="v6">🛸 <b>נחיל כטב״מים</b> (מגל 3): 12-20 שאהדים צהובים קטנים יוצאים יחד מאיראן, עיראק או תימן ותוקפים את אותה עיר. איטיים וחלשים: <b>מגן אור</b> ו<b>כיפת ברזל</b> הכי יעילים. חץ ו-THAAD יורים עליהם רק אם אין שום דבר אחר קרוב, וזה בזבוז (₪30 על רחפן של ₪5).</li>
+        <li class="v6">⚡ <b>טיל היפרסוני</b> (מגל 5, 1-2 בגל מאיראן): ורוד, מהיר מאוד ומתמרן בזיגזג. רק <b>חץ</b> (60%), <b>THAAD</b> (40%) ונושאות המטוסים SM-6 (30%) יכולים לו. מומלץ כמה סוללות חץ.</li>
+        <li class="v6">💥 <b>בליסטי מתפצל</b> (מגל 6): טיל עם טבעת אדומה שמתפצל ב-60% מהדרך ל-3 ראשי קרב. יירוט לפני הפיצול = מיירט אחד. אחרי = 3 מטרות נפרדות.</li>
+        <li class="v6">✈ <b>תקיפת ח״א</b>: בין גלים לוחצים ״✈ תקיפת ח״א״ ובוחרים מטרה (₪800, תקיפה אחת בהפסקה): משגרים במערב איראן (−25% בליסטיים בגל הבא), מפעל טילים (−15% מכל הטילים מאיראן ל-3 גלים), נמל חודיידה (−50% מתימן), משגרי חיזבאללה (−30% רקטות). 2 מטוסי F-35, בכל תקיפה 15% לאבד אחד, והוא חוזר אחרי 3 גלים.</li>
+        <li class="v6">📡 <b>מכ״ם אורן ירוק</b> (₪600, עד 3): מציבים בישראל. סוללות שלכם עד 90 ק״מ ממנו (הטבעת הירוקה) מקבלות <b>+20% טווח</b>, ואיומים מזוהים מוקדם יותר. בלי מכ״ם הסוללות שלכם רואות רק עד 480 ק״מ מהערים, ומה שעוד לא זוהה מופיע כנקודה חיוורת. איראן שולחת לפעמים טיל שיוט על המכ״ם: מכ״ם פגוע מאבד את הבונוס עד שמקישים עליו ← תיקון ב-₪300.</li>
+        <li class="v6">🏙 <b>כלכלת ערים</b>: כל עיר משלמת בסוף כל גל: תל אביב ₪120, חיפה וירושלים ₪80, באר שבע ₪50, שאר הערים ₪30. פגיעה בעיר מורידה 20% מההכנסה שלה ל-2 גלים (מצטבר). הקישו על עיר ← <b>מרחבים מוגנים</b> ב-₪300: פגיעה שם מורידה חצי מהנזק וחצי מאובדן ההכנסה. בסוף כל גל מופיע סיכום הכנסות.</li>
+        <li class="v6">🇸🇦 <b>ערב הסעודית</b> מצטרפת בגל 5: סוללות פטריוט בג׳יזאן ובתבוק שמיירטות קודם כל את מה שהחותים משגרים. החותים יכולים לתקוף אותן, וגם סעודיה עשויה לבקש לקנות סוללה.</li>
         <li class="v5">📦 <b>מחסניות</b>: לכל סוללה מלאי מיירטים: כיפת ברזל 20, שרביט קסמים 8, חץ 4 (וגם THAAD 6, פטריוט 8). הפס הקטן מעל הסוללה מראה כמה נשאר. כשהמלאי נגמר כתוב <b>״טוען…״</b> והיא מתמלאת אחרי כ-5 שניות (חץ ו-THAAD כ-8). מגן אור (לייזר) לא נגמר.</li>
         <li class="v5">★ <b>שדרוג סוללות</b>: הקישו על סוללה שלכם ← חלון שדרוג עם 4 מסלולים: טווח, קצב ירי וטעינה, סיכוי פגיעה וגודל מחסנית, 3 רמות לכל אחד. המשחק נעצר בזמן השדרוג. סוללה משודרגת מסומנת בכוכבים, ושווה יותר במכירה לקואליציה (המחיר + השדרוגים ×1.5).</li>
         <li class="v5">🇺🇸 <b>עוד כוחות אמריקאים</b>: מגל 4 גם עין אל-אסד (עיראק) ואל-עודייד (קטאר). מגל 6 שתי נושאות מטוסים, במפרץ הפרסי ומול חופי ישראל, עם יירוט ימי SM-6 (כמו פטריוט חזק). איראן ותימן יכולות לתקוף גם אותן.</li>
@@ -77,7 +88,8 @@
         <li><span class="sw arrow"></span><b>חץ</b> טווח ארוך, הכי טוב נגד בליסטיים (מגל 4). יקר.</li>
         <li>כל יירוט עולה כסף ומחזיר פרס. כל עיר עומדת ב-5 פגיעות (הנקודות מתחת לעיר). המשחק נגמר רק כשכל הערים הושמדו.</li>
         <li>מגל 4: בסיסי <b>רמת דוד</b> ו<b>נבטים</b> מתעוררים וחיל האוויר נפתח. המטוסים ממריאים ונטענים בבסיסים, ואיראן תתקוף גם אותם. בחרו מטוס והקישו על המפה לסיור, או על אתר שיגור / סוללת נ״מ לתקיפה.</li>
-        <li><b>אתרי שיגור</b> באיראן ובתימן מתמחים: <span class="lk d">◆</span> רחפנים ומל״טים · <span class="lk c">■</span> מל״טים וטילי שיוט · <span class="lk b">▲</span> בליסטיים וטילי שיוט. אתר שהופצץ מושבת בגל הבא, חוזר ל-50% בגל שאחריו ולמלא בגל שלאחר מכן. תקיפה חוזרת מאפסת אותו.</li>
+        <li class="legend"><b>מקרא איומים</b>: <span class="tk" style="color:#ffa53c">▶</span> רחפן · <span class="tk" style="color:#ff7d3c">▶</span> מל״ט · <span class="tk" style="color:#ffd36a">▸▸</span> נחיל · <span class="tk" style="color:#fff1a8">━</span> טיל שיוט · <span class="tk" style="color:#ff4040">●</span> בליסטי · <span class="tk" style="color:#ff2f6d">◉</span> מתפצל · <span class="tk" style="color:#ff5cf0">✛</span> היפרסוני · <span class="tk" style="color:#ff9a4a">●</span> רקטה מלבנון</li>
+        <li><b>אתרי שיגור</b> באיראן, בעיראק ובתימן מתמחים: <span class="lk d">◆</span> רחפנים ומל״טים · <span class="lk c">■</span> מל״טים וטילי שיוט · <span class="lk b">▲</span> בליסטיים וטילי שיוט. אתר שהופצץ מושבת בגל הבא, חוזר ל-50% בגל שאחריו ולמלא בגל שלאחר מכן. תקיפה חוזרת מאפסת אותו.</li>
         <li>ההתקדמות נשמרת אוטומטית בסוף כל גל.</li>
       </ul>
       <p class="tip">בכל גל שעברתם נכנס בונוס גם לקופה המשותפת עם <a href="rts/" style="color:#7ae8d8;font-weight:bold">חזית לבנון ↗</a>, ומשם מושכים בכפתור ⇄. כיבוש צור, צידון וביירות בחזית מוסיף אותן כערים כאן.</p>

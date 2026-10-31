@@ -8,10 +8,10 @@ function boot(){const els={};const win={innerWidth:844,innerHeight:390,devicePix
   const ctx=vm.createContext(win);vm.runInContext(fs.readFileSync(path.join(S_DIR,'geo.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(S_DIR,'game.js'),'utf8'),ctx);return {G:win.GAME,els}}
 const SPOTS={dome:[[34.82,32.05],[35.0,32.7],[34.82,31.3],[34.95,29.65],[35.15,31.78],[34.95,32.45]],beam:[[34.8,31.85],[35.08,32.88]],sling:[[34.95,31.95],[34.85,31.5]],arrow:[[34.95,31.65],[35.05,32.35]]};
 function place(G,type,i){const [lo,la]=SPOTS[type][i];G.S.budget+=1000;assert.ok(G.placeTower(type,lo,la),'placed '+type);}
-function eligible(G,tw,th){const T=G.TW[tw.type];if(th.dead)return false;if(tw.owner&&G.coalition){const b=G.coalition.cbaseOf(tw);if(b&&G.capAt(b,G.effW())<=0)return false} /* v4: a struck coalition base is out of service */const d=Math.hypot(tw.x-th.x,tw.y-th.y);if(d>T.range)return false;
+function eligible(G,tw,th){const T=G.TW[tw.type];if(th.dead)return false;if(!tw.owner&&!th.det)return false;/* v6: own batteries engage tracked threats only */const BAL=G.v6?G.v6.BAL:{ballistic:1};const waste=T.waste&&T.waste.includes(th.type);if(tw.owner&&G.coalition){const b=G.coalition.cbaseOf(tw);if(b&&G.capAt(b,G.effW())<=0)return false} /* v4: a struck coalition base is out of service */const d=Math.hypot(tw.x-th.x,tw.y-th.y);const rng=G.eff?G.eff.range(tw):T.range;if(d>(waste?rng*.3:rng))return false;
   if(tw.type==='beam')return !th.beamed&&!!T.dwell[th.type]&&th.alt<=T.altMax;
-  const pk=T.pk[th.type];if(!pk)return false;const ceil=th.type==='ballistic'&&T.altBal?T.altBal:T.altMax;if(ceil!==undefined&&th.alt>ceil)return false;
-  if(T.altMin!==undefined&&(th.alt<T.altMin||th.s/th.len>.93))return false;return th.eng<(pk<.5?2:1)}
+  const pk=T.pk[th.type];if(!pk)return false;const ceil=BAL[th.type]&&T.altBal?T.altBal:T.altMax;if(ceil!==undefined&&th.alt>ceil)return false;
+  if(T.altMin!==undefined&&!waste&&(th.alt<T.altMin||th.s/th.len>.93))return false;return th.eng<(pk<.5?2:1)}
 function runWave(G){G.startWave();const w=G.S.wave;const before=new Map(G.S.towers.map(t=>[t,t.fired||0]));let t=0;let threatTime=0;const idle=new Map();let maxIdle=0,worst='';
   while(G.S.inWave&&!G.S.over&&t<400){G.step(1/30);t+=1/30;if(G.S.threats.length)threatTime+=1/30;
     for(const tw of G.S.towers){const ready=tw.cd<=0&&(tw.ammo>0)&&!tw.tgt;const opp=ready&&G.S.threats.some(th=>eligible(G,tw,th));const n=opp?(idle.get(tw)||0)+1:0;idle.set(tw,n);if(n>maxIdle){maxIdle=n;worst=tw.type}}}

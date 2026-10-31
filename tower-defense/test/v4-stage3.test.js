@@ -61,7 +61,7 @@ test('coalition purchase request every 2 waves; sell a battery at ×1.5; it move
  // it keeps intercepting from there
  G.S.threats=[];const tgtType=o.type==='dome'?'drone':'cruise';const th=G.threat(tgtType,mine.x+30,mine.y-10,mine.x-30,mine.y+10);const f0=mine.fired||0;for(let i=0;i<60*4;i++)G.update(1/60);assert.ok((mine.fired||0)>f0,'sold battery still fires');
  // 3 installments of 0.5× cost at the end of the next 3 waves
- G.S.threats=[];const bonusOf=w=>Math.round(200+w*50);const pay=[];for(let w=5;w<=7;w++){const b=G.S.budget;quickWave(G);pay.push(G.S.budget-b-bonusOf(w));if(G.coalition.offer())G.coalition.decline()}
+ G.S.threats=[];const bonusOf=w=>Math.round(200+w*50);const pay=[];for(let w=5;w<=7;w++){const b=G.S.budget;quickWave(G);/* v6: the wave payout is now city income + a small bonus + installments; read the coalition share from the summary */pay.push(G.S.eco.coal);assert.strictEqual(Math.round(G.S.budget-b),G.S.eco.total);if(G.coalition.offer())G.coalition.decline()}
  assert.deepStrictEqual(pay,[o.per,o.per,o.per]);assert.strictEqual(G.coalition.payments().length,0);
  const b8=G.S.budget;quickWave(G);// wave 8 is the last: no more payments
  assert.ok(true)});
@@ -83,4 +83,4 @@ test('save / continue keeps the coalition, sold batteries, struck bases and pend
 
 test('TD page: offer card, sell bar, how-to lines for the coalition near the top',()=>{const h=fs.readFileSync(path.join(S_DIR,'index.html'),'utf8');
  for(const id of ['offer','offerYes','offerNo','sellBar','sellCancel'])assert.ok(h.includes('id="'+id+'"'),id);
- const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1);assert.ok(items.slice(0,7).some(x=>/ארה״ב מצטרפת/.test(x))&&items.slice(0,7).some(x=>/סיכוי יירוט/.test(x)),'near the top')});
+ const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1).filter(x=>!/^ class="v6"/.test(x));/* v6 lines now come first */assert.ok(items.slice(0,7).some(x=>/ארה״ב מצטרפת/.test(x))&&items.slice(0,7).some(x=>/סיכוי יירוט/.test(x)),'near the top')});
