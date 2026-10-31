@@ -50,7 +50,7 @@
   <div id="alert" class="hidden">⚠ שיגור בליסטי</div>
   <div id="lbLine" class="hidden"></div>
   <button id="btnNext" class="hidden">התחל גל 1 ▶</button>
-  <button id="btnIaf" class="hidden">✈ תקיפת ח״א ₪800</button>
+  <button id="btnIaf" class="hidden">✈ תקיפת ח״א ₪500</button>
   <div id="ecoPanel" class="hidden" role="status" aria-label="סיכום הכנסות"></div>
   <div id="v6Panel" class="hidden" role="dialog" aria-label="פרטים"></div>
   <div id="offer" class="hidden" role="dialog" aria-labelledby="offerTitle"><div class="ocard"><h3 id="offerTitle">בקשת רכש</h3><p id="offerText"></p><div class="orow"><button id="offerNo">סרב</button><button id="offerYes" class="primary">קבל ובחר סוללה ←</button></div></div></div>
@@ -66,11 +66,18 @@
         <button class="dbtn" data-d="easy" role="radio" aria-checked="false">קל</button><button class="dbtn sel" data-d="normal" role="radio" aria-checked="true">רגיל</button><button class="dbtn" data-d="hard" role="radio" aria-checked="false">קשה</button></div>
       <div class="startRow"><button id="btnContinue" class="primary alt hidden">המשך משחק ▶</button><button id="btnStart" class="primary">משחק חדש ▶</button></div>
       <p id="bestLine" class="best"></p>
+      <div class="v7Row"><button id="btnScores" class="ghostBtn">🏆 טבלת שיאים</button><button id="btnCode" class="ghostBtn">💾 קוד שמירה (מעבר מכשיר)</button></div>
       <ul>
+        <li class="v7">🌊 <b>20 גלים</b> במקום 8: הקושי עולה בהדרגה, ובגלים המאוחרים יש יותר נחילים, היפרסוניים ומתפצלים, והכל טס קצת מהר יותר. אחרי גל 20 אפשר להמשיך ב<b>מצב אינסופי ∞</b>.</li>
+        <li class="v7">👑 <b>גל בוס</b> כל 5 גלים (5, 10, 15, 20...): מטח ענק מאיראן, תימן, עיראק ולבנון בבת אחת. אם אף עיר לא נופלת בו מקבלים <b>בונוס כספי גדול</b>.</li>
+        <li class="v7">🏆 <b>ניקוד ושיאים</b>: בסוף משחק: יירוטים ×10 + ערים ששרדו ×500 + גל ×250, כפול רמת הקושי (קל ×0.75, קשה ×1.5). 10 התוצאות הטובות נשמרות בטבלה (כפתור למעלה).</li>
+        <li class="v7">💾 <b>קוד שמירה</b>: בכפתור למעלה מעתיקים קוד אחד שמכיל את ההתקדמות בשני המשחקים ואת הקופה המשותפת. במכשיר החדש מדביקים אותו וזהו.</li>
+        <li class="v7">🇺🇸 <b>בסיס אמריקאי שנפגע</b> מושבת לשאר הגל ולגל הבא, ו<b>חוזר לפעולה אחרי 2 גלים</b> (הודעה על המסך). בזמן שהוא מושבת איראן לא מבזבזת עליו טילים.</li>
+        <li class="v7">📍 <b>הצבה רק בשטח ישראל</b> (כולל יהודה ושומרון והגולן, ובסביבת ערים שכבשתם בלבנון): סוללות וגם מכ״ם. אי אפשר יותר בירדן, מצרים, עזה, סוריה. ✈ <b>תקיפת ח״א</b> עכשיו ב-₪500.</li>
         <li class="v6">🛸 <b>נחיל כטב״מים</b> (מגל 3): 12-20 שאהדים צהובים קטנים יוצאים יחד מאיראן, עיראק או תימן ותוקפים את אותה עיר. איטיים וחלשים: <b>מגן אור</b> ו<b>כיפת ברזל</b> הכי יעילים. חץ ו-THAAD יורים עליהם רק אם אין שום דבר אחר קרוב, וזה בזבוז (₪30 על רחפן של ₪5).</li>
         <li class="v6">⚡ <b>טיל היפרסוני</b> (מגל 5, 1-2 בגל מאיראן): ורוד, מהיר מאוד ומתמרן בזיגזג. רק <b>חץ</b> (60%), <b>THAAD</b> (40%) ונושאות המטוסים SM-6 (30%) יכולים לו. מומלץ כמה סוללות חץ.</li>
         <li class="v6">💥 <b>בליסטי מתפצל</b> (מגל 6): טיל עם טבעת אדומה שמתפצל ב-60% מהדרך ל-3 ראשי קרב. יירוט לפני הפיצול = מיירט אחד. אחרי = 3 מטרות נפרדות.</li>
-        <li class="v6">✈ <b>תקיפת ח״א</b>: בין גלים לוחצים ״✈ תקיפת ח״א״ ובוחרים מטרה (₪800, תקיפה אחת בהפסקה): משגרים במערב איראן (−25% בליסטיים בגל הבא), מפעל טילים (−15% מכל הטילים מאיראן ל-3 גלים), נמל חודיידה (−50% מתימן), משגרי חיזבאללה (−30% רקטות). 2 מטוסי F-35, בכל תקיפה 15% לאבד אחד, והוא חוזר אחרי 3 גלים.</li>
+        <li class="v6">✈ <b>תקיפת ח״א</b>: בין גלים לוחצים ״✈ תקיפת ח״א״ ובוחרים מטרה (₪500, תקיפה אחת בהפסקה): משגרים במערב איראן (−25% בליסטיים בגל הבא), מפעל טילים (−15% מכל הטילים מאיראן ל-3 גלים), נמל חודיידה (−50% מתימן), משגרי חיזבאללה (−30% רקטות). 2 מטוסי F-35, בכל תקיפה 15% לאבד אחד, והוא חוזר אחרי 3 גלים.</li>
         <li class="v6">📡 <b>מכ״ם אורן ירוק</b> (₪600, עד 3): מציבים בישראל. סוללות שלכם עד 90 ק״מ ממנו (הטבעת הירוקה) מקבלות <b>+20% טווח</b>, ואיומים מזוהים מוקדם יותר. בלי מכ״ם הסוללות שלכם רואות רק עד 480 ק״מ מהערים, ומה שעוד לא זוהה מופיע כנקודה חיוורת. איראן שולחת לפעמים טיל שיוט על המכ״ם: מכ״ם פגוע מאבד את הבונוס עד שמקישים עליו ← תיקון ב-₪300.</li>
         <li class="v6">🏙 <b>כלכלת ערים</b>: כל עיר משלמת בסוף כל גל: תל אביב ₪120, חיפה וירושלים ₪80, באר שבע ₪50, שאר הערים ₪30. פגיעה בעיר מורידה 20% מההכנסה שלה ל-2 גלים (מצטבר). הקישו על עיר ← <b>מרחבים מוגנים</b> ב-₪300: פגיעה שם מורידה חצי מהנזק וחצי מאובדן ההכנסה. בסוף כל גל מופיע סיכום הכנסות.</li>
         <li class="v6">🇸🇦 <b>ערב הסעודית</b> מצטרפת בגל 5: סוללות פטריוט בג׳יזאן ובתבוק שמיירטות קודם כל את מה שהחותים משגרים. החותים יכולים לתקוף אותן, וגם סעודיה עשויה לבקש לקנות סוללה.</li>
@@ -102,7 +109,16 @@
       <h2 id="overTitle">המשחק נגמר</h2>
       <p id="overText"></p>
       <p id="overBest" class="best"></p>
-      <button id="btnRestart" class="primary">שחק שוב ↻</button>
+      <div id="overScore"></div>
+      <div class="startRow"><button id="btnEndless" class="primary alt hidden">המשך במצב אינסופי ∞</button><button id="btnRestart" class="primary">שחק שוב ↻</button></div>
+    </div>
+  </section>
+
+  <section id="v7" class="modal hidden" aria-labelledby="v7Title">
+    <div class="card">
+      <h2 id="v7Title"></h2>
+      <div id="v7Body"></div>
+      <div class="startRow"><button id="v7Close" class="primary">סגור ✖</button></div>
     </div>
   </section>
 

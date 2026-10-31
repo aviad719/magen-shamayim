@@ -9,7 +9,9 @@ function boot(dir){const els={};const win={innerWidth:844,innerHeight:390,device
 const seedR=s=>{let x=s;Math.random=()=>{x=(x*16807)%2147483647;return x/2147483647}};
 const SLOTS=[['dome',34.82,32.05],['dome',35.0,32.75],['dome',35.18,31.78],['beam',34.85,32.15],['dome',34.82,31.3],['sling',34.95,32.3],['arrow',35.0,31.6],
  ['dome',34.95,29.62],['beam',35.05,32.82],['sling',35.1,31.4],['arrow',34.9,32.6],['dome',34.98,32.47],['beam',35.22,31.72],['sling',34.85,31.9],['arrow',35.2,31.0],
- ['dome',34.75,31.9],['beam',34.9,31.25],['sling',35.15,32.6],['dome',35.1,32.95],['arrow',34.85,30.8]];
+ ['dome',34.75,31.9],['beam',34.9,31.25],['sling',35.15,32.6],['dome',35.1,32.95],['arrow',34.85,30.8],
+ // v7: 20 waves — a reasonable player keeps building past 20 batteries
+ ['sling',34.8,32.25],['dome',35.05,31.75],['arrow',35.05,32.35],['beam',35.0,32.6],['sling',34.9,31.15],['dome',34.95,32.9],['arrow',34.95,31.85],['beam',34.8,31.95]];
 function play(dir,diff,seed,v6,tune){seedR(seed);const G=boot(dir);if(tune&&G.v6)G.v6.tune(tune);G.newGame(diff);let slot=0,money=0,iaf=0,spentShots=0;const log=[];
  for(let w=1;w<=G.WAVES.length;w++){
   if(v6&&G.v6){ // use the new features the way a reasonable player would

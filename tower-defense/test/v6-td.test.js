@@ -52,9 +52,9 @@ test('1 MIRV: one interceptor before the split; at 60% it becomes 3 warheads (3 
  const k0=G.S.stats.kills;let n=0;while(!m2.dead&&n++<60*20)G.update(1/60);if(G.S.stats.kills>k0)assert.strictEqual(G.S.threats.filter(t=>t.type==='rv').length,0,'killed before the split = no warheads');
  else assert.ok(G.S.threats.filter(t=>t.type==='rv').length===3)});
 
-test('2 Air Force strike: between waves only, ₪800, one per break, cuts the next wave as listed',()=>{seed(8);const {G}=boot();G.newGame('normal');G.S.budget=5000;
+test('2 Air Force strike: between waves only, ₪500 (v7), one per break, cuts the next wave as listed',()=>{seed(8);const {G}=boot();G.newGame('normal');G.S.budget=5000;
  assert.ok(!G.v6.canStrike(),'not before wave 1');quickWave(G);assert.ok(G.v6.canStrike());const b=G.S.budget;
- const r=G.v6.strike('hodeidah');assert.ok(r);assert.strictEqual(G.S.budget,b-800);assert.ok(!G.v6.canStrike(),'one per break');assert.strictEqual(G.v6.strike('factory'),null);
+ const r=G.v6.strike('hodeidah');assert.ok(r);assert.strictEqual(G.v6.IAF.cost,500);assert.strictEqual(G.S.budget,b-500);assert.ok(!G.v6.canStrike(),'one per break');assert.strictEqual(G.v6.strike('factory'),null);
  G.startWave();assert.ok(!G.v6.canStrike(),'not during a wave');G.S.queue=[];G.S.threats=[];G.step(.1);assert.ok(G.v6.canStrike(),'next break');
  // effect sizes on the wave they apply to
  G.S.iaf.mods=[{k:'launchers',from:6,to:6}];G.S.wave=5;seed(11);const bal=q=>q.filter(e=>!e.lb&&G.S.launchers[e.li].cc==='IR'&&(e.type==='ballistic'||e.type==='mirv')).length;const a=bal(G.buildWave(6));G.S.iaf.mods=[];seed(11);const b2=bal(G.buildWave(6));
@@ -116,9 +116,9 @@ test('5 Saudi Arabia joins at wave 5: Patriots at Jizan and Tabuk, Houthi launch
  assert.ok(offers.some(x=>/:sa$/.test(x)),'Saudi asks to buy: '+offers.join(' '))});
 
 test('how-to lines for every v6 item at the TOP of the intro; new buttons and panels exist',()=>{const h=fs.readFileSync(path.join(S_DIR,'index.html'),'utf8');
- const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1,8);assert.ok(items.every(x=>/^ class="v6"/.test(x)),'first 7 are v6');const t=items.join(' ');
- for(const re of [/נחיל/,/היפרסוני/,/מתפצל/,/תקיפת ח״א/,/אורן ירוק/,/מרחבים מוגנים/,/ערב הסעודית/,/₪800/,/₪600/,/₪300/])assert.match(t,re);
+ const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const all=ul.split('<li').slice(1);assert.ok(all.slice(0,6).every(x=>/^ class="v7"/.test(x)),'v7 lines first');const items=all.filter(x=>!/^ class="v7"/.test(x)).slice(0,7);assert.ok(items.every(x=>/^ class="v6"/.test(x)),'then 7 v6 lines');const t=items.join(' ');
+ for(const re of [/נחיל/,/היפרסוני/,/מתפצל/,/תקיפת ח״א/,/אורן ירוק/,/מרחבים מוגנים/,/ערב הסעודית/,/₪500/,/₪600/,/₪300/])assert.match(t,re);
  for(const id of ['btnIaf','ecoPanel','v6Panel','radarCnt'])assert.ok(h.includes('id="'+id+'"'),id);assert.ok(h.includes('data-t="radar"'));assert.match(h,/מקרא איומים/)});
 
-test('balance: a scripted player still wins normal (3 seeds), city money keeps total income similar or higher',()=>{const {play}=require('./td-bot.js');let won=0;
- for(const s of [1,2,3]){const r=play(S_DIR,'normal',s,false);if(r.won)won++;assert.ok(r.cities>=3,'seed '+s+' cities '+r.cities)}assert.strictEqual(won,3)});
+test('balance: a scripted player still wins normal through all 20 waves (3 seeds, v7), using radar / shelter / strike like a reasonable player',()=>{const {play}=require('./td-bot.js');let won=0;
+ for(const s of [1,2,3]){const r=play(S_DIR,'normal',s,true);if(r.won)won++;assert.ok(r.cities>=2,'seed '+s+' cities '+r.cities)}assert.strictEqual(won,3)});

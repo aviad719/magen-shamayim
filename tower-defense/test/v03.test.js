@@ -26,9 +26,9 @@ test('13 specialised sites (10 Iran, 3 Yemen); each threat spawns only from a si
   assert.equal(L.filter(l=>l.cc==='IR').length,10);assert.equal(L.filter(l=>l.cc==='YE').length,3);assert.equal(L.filter(l=>l.cc==='IQ').length,1,'v6: one Iraqi militia site (swarms)');
   for(const k of ['D','C','B']){assert.ok(L.some(l=>l.cc==='IR'&&l.kind===k),'Iran has '+k);assert.ok(L.some(l=>l.cc==='YE'&&l.kind===k),'Yemen has '+k)}
   /* v6: D sites also launch swarms, B sites also hypersonic + MIRV */assert.deepEqual([...G.LTYPES.D.makes],['drone','uav','swarm']);assert.deepEqual([...G.LTYPES.C.makes],['uav','cruise']);assert.deepEqual([...G.LTYPES.B.makes],['ballistic','cruise','hyper','mirv']);
-  for(let n=1;n<=8;n++){G.S.wave=n-1;for(let r=0;r<5;r++)for(const e of G.buildWave(n)){const l=L[e.li];assert.ok(G.LTYPES[l.kind].makes.includes(e.type),e.type+' from '+l.n+' ('+l.kind+') in wave '+n);if(n<4)assert.ok(l.cc==='IR'||(l.cc==='IQ'&&e.type==='swarm'),'no Yemen before wave 4');if(l.cc==='IQ')assert.equal(e.type,'swarm','Iraq: swarms only')}}
+  for(let n=1;n<=8;n++){G.S.wave=n-1;for(let r=0;r<5;r++)for(const e of G.buildWave(n)){if(e.lb)continue;/* v7: boss salvo rockets come from Lebanon */const l=L[e.li];assert.ok(G.LTYPES[l.kind].makes.includes(e.type),e.type+' from '+l.n+' ('+l.kind+') in wave '+n);if(n<4)assert.ok(l.cc==='IR'||(l.cc==='IQ'&&e.type==='swarm'),'no Yemen before wave 4');if(l.cc==='IQ'&&!e.boss)assert.equal(e.type,'swarm','Iraq: swarms only (outside boss salvos)')}}
   // live play: spawned threats come from matching sites
-  G.S.wave=4;for(const c of G.S.cities){c.hp=99}G.startWave();let seen=0;for(let i=0;i<70*30&&G.S.inWave;i++){G.step(1/30);for(const t of G.S.threats){const l=L[t.from];assert.ok(G.LTYPES[l.kind].makes.includes(t.type));seen++}}assert.ok(seen>0);
+  G.S.wave=4;for(const c of G.S.cities){c.hp=99}G.startWave();let seen=0;for(let i=0;i<70*30&&G.S.inWave;i++){G.step(1/30);for(const t of G.S.threats){if(t.lb)continue;const l=L[t.from];assert.ok(G.LTYPES[l.kind].makes.includes(t.type));seen++}}assert.ok(seen>0);
 });
 
 test('air-strike recovery: out next wave → 50% the wave after → full; a re-strike resets it',()=>{
@@ -40,10 +40,10 @@ test('air-strike recovery: out next wave → 50% the wave after → full; a re-s
   assert.equal(G.capAt(site,4),0,'out in the next wave');assert.equal(G.capAt(site,5),.5,'50% the wave after');assert.equal(G.capAt(site,6),1,'full after that');
   assert.match(G.launcherInfo(site),/מושבת/);
   // wave plans: nothing from the site in wave 4; ~half its share in wave 5
-  const share=(n,name)=>{let a=0,b=0;for(let r=0;r<300;r++)for(const e of G.buildWave(n)){const l=G.S.launchers[e.li];if(l.n===name)a++;if(l.n==='תבריז')b++}return a/b};
+  const share=(n,name)=>{let a=0,b=0;for(let r=0;r<300;r++)for(const e of G.buildWave(n)){if(e.lb)continue;const l=G.S.launchers[e.li];if(l.n===name)a++;if(l.n==='תבריז')b++}return a/b};
   assert.equal(share(4,'כרמאנשאה'),0);const half=share(5,'כרמאנשאה');assert.ok(half>.35&&half<.65,'about 50% in wave 5, got '+half.toFixed(2));const full=share(6,'כרמאנשאה');assert.ok(full>.8&&full<1.25,'full in wave 6, got '+full.toFixed(2));
   // play wave 4: no threat comes from the struck site; then wave 5 shows repairing
-  for(const c of G.S.cities)c.hp=99;G.startWave();for(let i=0;i<120*30&&G.S.inWave;i++){G.step(1/30);for(const t of G.S.threats)assert.notEqual(G.S.launchers[t.from].n,'כרמאנשאה')}
+  for(const c of G.S.cities)c.hp=99;G.startWave();for(let i=0;i<120*30&&G.S.inWave;i++){G.step(1/30);for(const t of G.S.threats)if(!t.lb)assert.notEqual(G.S.launchers[t.from].n,'כרמאנשאה')}
   assert.equal(G.S.wave,4);assert.equal(G.capAt(site,G.effW()),.5);assert.match(G.launcherInfo(site),/50%/);
   // re-strike during wave 5 → fully out again in 5 (rest) and 6, 50% in 7
   G.startWave();site.struck=G.S.wave;assert.equal(G.capAt(site,5),0);assert.equal(G.capAt(site,6),0);assert.equal(G.capAt(site,7),.5);assert.equal(G.capAt(site,8),1);

@@ -82,4 +82,4 @@ test('A3 an old v4 save past wave 4 gets the new bases on load, and the carriers
  quickWave(G);quickWave(G);assert.strictEqual(G.S.wave,6);assert.strictEqual(us(G).length,16,'+2 carriers × 2 SM-6')});
 
 test('A how-to lines for magazines, upgrades and the new US forces at the top of the TD intro',()=>{const h=fs.readFileSync(path.join(S_DIR,'index.html'),'utf8');
- const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1).filter(x=>!/^ class="v6"/.test(x)).slice(0,3).join(' ');/* v6 lines now come first */assert.match(items,/טוען…/);assert.match(items,/שדרוג/);assert.match(items,/נושאות מטוסים/);assert.match(items,/עין אל-אסד/);assert.ok(h.includes('id="upPanel"'))});
+ const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1).filter(x=>!/^ class="v[67]"/.test(x)).slice(0,3).join(' ');/* v6 lines now come first */assert.match(items,/טוען…/);assert.match(items,/שדרוג/);assert.match(items,/נושאות מטוסים/);assert.match(items,/עין אל-אסד/);assert.ok(h.includes('id="upPanel"'))});

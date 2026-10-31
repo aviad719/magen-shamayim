@@ -28,6 +28,25 @@
   }
   function save(o) { try { store().setItem(KEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
   function note(o, text) { o.log.unshift({ t: Date.now(), text: text }); if (o.log.length > 20) o.log.length = 20; }
+  // v7 save code helpers: utf-8 base64 (no btoa/Buffer needed) + a short checksum
+  var SAVE_KEYS = ['magenShamayim.save.v3', 'magenShamayim.best.v3', 'magenShamayim.scores.v7', 'israelFront.shared.v1', 'lebanonFront.save.v1'];
+  var CODE_TAG = 'MSH1-';
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  function utf8(str) { var out = []; for (var i = 0; i < str.length; i++) { var c = str.charCodeAt(i);
+      if (c >= 0xd800 && c < 0xdc00 && i + 1 < str.length) { c = 0x10000 + ((c - 0xd800) << 10) + (str.charCodeAt(++i) - 0xdc00); }
+      if (c < 0x80) out.push(c); else if (c < 0x800) out.push(0xc0 | c >> 6, 0x80 | c & 63);
+      else if (c < 0x10000) out.push(0xe0 | c >> 12, 0x80 | c >> 6 & 63, 0x80 | c & 63);
+      else out.push(0xf0 | c >> 18, 0x80 | c >> 12 & 63, 0x80 | c >> 6 & 63, 0x80 | c & 63); } return out; }
+  function unutf8(b) { var s = ''; for (var i = 0; i < b.length;) { var c = b[i++];
+      if (c >= 0xf0) c = (c & 7) << 18 | (b[i++] & 63) << 12 | (b[i++] & 63) << 6 | b[i++] & 63;
+      else if (c >= 0xe0) c = (c & 15) << 12 | (b[i++] & 63) << 6 | b[i++] & 63;
+      else if (c >= 0xc0) c = (c & 31) << 6 | b[i++] & 63;
+      if (c >= 0x10000) { c -= 0x10000; s += String.fromCharCode(0xd800 + (c >> 10), 0xdc00 + (c & 1023)); } else s += String.fromCharCode(c); } return s; }
+  function b64enc(str) { var b = utf8(str), o = ''; for (var i = 0; i < b.length; i += 3) { var n = b[i] << 16 | (b[i + 1] || 0) << 8 | (b[i + 2] || 0);
+      o += B64[n >> 18 & 63] + B64[n >> 12 & 63] + (i + 1 < b.length ? B64[n >> 6 & 63] : '') + (i + 2 < b.length ? B64[n & 63] : ''); } return o; }
+  function b64dec(s) { var b = [], buf = 0, bits = 0; for (var i = 0; i < s.length; i++) { var v = B64.indexOf(s[i]); if (v < 0) throw new Error('bad');
+      buf = buf << 6 | v; bits += 6; if (bits >= 8) { bits -= 8; b.push(buf >> bits & 255); } } return unutf8(b); }
+  function sum(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0; return h.toString(36); }
   var api = {
     KEY: KEY, CITY_INFO: CITY_INFO,
     useStorage: function (s) { mem = s; }, memoryStorage: memoryStorage,
@@ -65,6 +84,41 @@
       n = Math.max(0, Math.floor(n || 0)); if (!n || !wallet) return 0;
       if (dir === 'out') { var have = Math.floor(wallet.get() || 0); n = Math.min(n, have); if (!n) return 0; wallet.set(wallet.get() - n); return api.deposit(n, name); }
       var got = api.withdraw(n, name); if (got) wallet.set(wallet.get() + got); return got;
+    },
+    // v7 save code: one text code that carries both games' progress (TD save + best + high scores, RTS save, shared pool) to another device.
+    SAVE_KEYS: SAVE_KEYS,
+    exportCode: function () {
+      var s = store(), d = {}, n = 0;
+      for (var i = 0; i < SAVE_KEYS.length; i++) { var v = s.getItem(SAVE_KEYS[i]); if (v != null) { d[SAVE_KEYS[i]] = v; n++; } }
+      var body = b64enc(JSON.stringify({ v: 1, at: Date.now(), d: d }));
+      return CODE_TAG + body + '.' + sum(body);
+    },
+    // check a code without touching anything: { ok, error?, data?, summary? }
+    readCode: function (code) {
+      code = String(code || '').replace(/\s+/g, '');
+      if (code.indexOf(CODE_TAG) !== 0) return { ok: false, error: 'זה לא קוד שמירה של המשחק' };
+      var rest = code.slice(CODE_TAG.length), dot = rest.lastIndexOf('.');
+      if (dot < 1) return { ok: false, error: 'הקוד חתוך או פגום' };
+      var body = rest.slice(0, dot);
+      if (sum(body) !== rest.slice(dot + 1)) return { ok: false, error: 'הקוד פגום (בדיקת תקינות נכשלה). העתיקו אותו שוב במלואו' };
+      var o; try { o = JSON.parse(b64dec(body)); } catch (e) { return { ok: false, error: 'הקוד פגום' }; }
+      if (!o || o.v !== 1 || !o.d || typeof o.d !== 'object') return { ok: false, error: 'הקוד פגום' };
+      var d = {};
+      for (var k in o.d) { if (SAVE_KEYS.indexOf(k) < 0 || typeof o.d[k] !== 'string') continue; try { JSON.parse(o.d[k]); } catch (e) { return { ok: false, error: 'הקוד פגום' }; } d[k] = o.d[k]; }
+      var td = null, rts = null, pool = 0;
+      try { td = JSON.parse(d['magenShamayim.save.v3'] || 'null'); } catch (e) {}
+      try { rts = JSON.parse(d['lebanonFront.save.v1'] || 'null'); } catch (e) {}
+      try { pool = Math.floor((JSON.parse(d[KEY] || 'null') || {}).budget || 0); } catch (e) {}
+      var hs = []; try { hs = JSON.parse(d['magenShamayim.scores.v7'] || '[]') || []; } catch (e) {}
+      return { ok: true, data: d, at: o.at, summary: { td: td ? { wave: td.wave, diff: td.diff } : null, rts: !!rts, pool: pool, scores: hs.length } };
+    },
+    // replace this device's progress with the code's (whitelisted keys only). Returns readCode's answer.
+    importCode: function (code) {
+      var r = api.readCode(code); if (!r.ok) return r;
+      var s = store();
+      for (var i = 0; i < SAVE_KEYS.length; i++) { try { s.removeItem(SAVE_KEYS[i]); } catch (e) {} }
+      for (var k in r.data) s.setItem(k, r.data[k]);
+      return r;
     },
     captured: function () { return load().captured.slice(); },
     capturedCities: function () { return load().captured.map(function (k) { return CITY_INFO[k]; }).filter(Boolean); },
