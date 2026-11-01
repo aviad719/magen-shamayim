@@ -6,7 +6,7 @@ function memStorage(){const m=new Map();return {getItem:k=>m.has(k)?m.get(k):nul
 function boot(storage){const els={};const win={innerWidth:844,innerHeight:390,devicePixelRatio:1,addEventListener(){},Math,console,JSON,Map,Set,Array,Object,Number,String,Date,Infinity,NaN,parseInt,parseFloat,isFinite};
   win.window=win;win.localStorage=storage||memStorage();win.document={getElementById:id=>els[id]||(els[id]=stub()),querySelectorAll:()=>[],createElement:()=>stub(),addEventListener(){},hidden:false};
   win.Path2D=function(){return stub()};win.Image=function(){return stub()};win.performance={now:()=>0};win.requestAnimationFrame=()=>0;win.setTimeout=()=>0;win.clearTimeout=()=>{};
-  const ctx=vm.createContext(win);vm.runInContext(fs.readFileSync(path.join(S_DIR,'geo.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(S_DIR,'game.js'),'utf8'),ctx);return {G:win.GAME,win}}
+  const ctx=vm.createContext(win);vm.runInContext(fs.readFileSync(path.join(S_DIR,'geo.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(S_DIR,'game.js'),'utf8'),ctx);if(win.GAME.v8){win.GAME.v8.SALVO.p0=0;win.GAME.v8.SALVO.pMax=0} /* v8: surprise salvos off for these composition checks */return {G:win.GAME,win}}
 const seed=s=>{let x=s;Math.random=()=>{x=(x*16807)%2147483647;return x/2147483647}};
 function quickWave(G){G.startWave();G.S.queue=[];G.S.threats=[];G.step(.1)}
 

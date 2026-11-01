@@ -153,3 +153,9 @@ table.hs tr.me td{background:rgba(255,210,80,.18);font-weight:bold}
 #v7 .msg.err{color:#ff8a7a}#v7 .msg.ok{color:#7dffb2}
 #overScore{max-height:150px;overflow:auto}
 #v7 .card,#over .card{max-height:calc(100vh - 16px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* v8 */
+.sw.saar{background:#6fe3ff;color:#6fe3ff;border-radius:2px 8px 8px 2px;height:7px}
+#stock{position:absolute;display:flex;gap:4px;font-size:11px;direction:rtl}
+.stockBtn b{display:flex;gap:5px;font-size:11px;white-space:nowrap;direction:rtl}.stockBtn{flex-direction:column;padding-inline:6px}.stockBtn .sk.low{color:#ff6b6b!important;font-weight:800}.stockBtn.low{border-color:#ff6b6b;box-shadow:0 0 8px #ff4b4b88 inset}
+.v6b.air{background:#13325a;border-color:#7db8ff}

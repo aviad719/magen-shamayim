@@ -83,4 +83,4 @@ test('save / continue keeps the coalition, sold batteries, struck bases and pend
 
 test('TD page: offer card, sell bar, how-to lines for the coalition near the top',()=>{const h=fs.readFileSync(path.join(S_DIR,'index.html'),'utf8');
  for(const id of ['offer','offerYes','offerNo','sellBar','sellCancel'])assert.ok(h.includes('id="'+id+'"'),id);
- const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1).filter(x=>!/^ class="v[67]"/.test(x));/* v6 lines now come first */assert.ok(items.slice(0,7).some(x=>/ארה״ב מצטרפת/.test(x))&&items.slice(0,7).some(x=>/סיכוי יירוט/.test(x)),'near the top')});
+ const ul=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>'));const items=ul.split('<li').slice(1).filter(x=>!/^ class="v[6-9]"/.test(x));/* v6 lines now come first */assert.ok(items.slice(0,7).some(x=>/ארה״ב מצטרפת/.test(x))&&items.slice(0,7).some(x=>/סיכוי יירוט/.test(x)),'near the top')});

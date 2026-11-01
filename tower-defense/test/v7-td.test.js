@@ -14,7 +14,7 @@ function finishWave(G){G.S.queue=[];G.S.threats=[];G.step(.1)}
 
 test('v7 1 territory: radar and batteries only inside Israel (incl. Judea & Samaria, Golan); not Jordan, Egypt, Gaza, Syria, Lebanon, Iran',()=>{const {G}=boot();G.newGame('normal');G.S.budget=99999;
  for(const [n,lo,la] of [['Tel Aviv',34.8,32.08],['Jerusalem',35.2,31.78],['Golan',35.75,33.0],['Eilat',34.95,29.6],['Samaria',35.25,32.2]])assert.ok(G.inIsrael(lo,la),n);
- for(const [n,lo,la] of [['Aqaba',35.0,29.53],['Gaza',34.45,31.5],['Amman',35.93,31.95],['Sinai near border',34.2,30.9],['Damascus',36.29,33.51],['Tyre',35.2,33.27],['Tehran',51.4,35.7],['Riyadh',46.7,24.7]]){
+ for(const [n,lo,la] of [['Aqaba',35.0,29.53],['Gaza',34.45,31.5],['Amman',35.93,31.95],['Sinai near border',34.2,30.9],['Damascus',36.29,33.51],['Tyre',35.2,33.27],['Tehran',51.4,35.7],['Baghdad',44.37,33.31]]){
    assert.ok(!G.inIsrael(lo,la),n+' is not Israel');assert.ok(!G.v6.placeRadar(lo,la),'no radar in '+n);assert.ok(!G.placeTower('dome',lo,la),'no battery in '+n)}
  assert.strictEqual(G.S.radars.length,0);assert.strictEqual(G.S.towers.length,0);
  assert.ok(G.v6.placeRadar(34.95,31.95),'radar inside Israel');assert.ok(!G.placeTower('dome',35.0,29.53),'not next to a radar either when outside Israel')});
@@ -72,6 +72,6 @@ test('v7 old v6 saves still load (no gid / endless fields)',()=>{const st=memSto
  const {G:G2}=boot(st);assert.ok(G2.continueGame());assert.strictEqual(G2.S.wave,6);assert.ok(!G2.S.endless);assert.ok(G2.S.gid)});
 
 test('v7 UI: how-to lines for every v7 item at the TOP of the intro; scores / save-code buttons, endless button, modal',()=>{const h=fs.readFileSync(path.join(S_DIR,'index.html'),'utf8');
- const items=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>')).split('<li').slice(1,7);assert.ok(items.every(x=>/^ class="v7"/.test(x)));const t=items.join(' ');
+ const items=h.slice(h.indexOf('<ul>'),h.indexOf('</ul>')).split('<li').slice(1).filter(x=>!/^ class="v8"/.test(x)).slice(0,6);assert.ok(items.every(x=>/^ class="v7"/.test(x)));const t=items.join(' ');
  for(const re of [/20 גלים/,/אינסופי/,/גל בוס/,/ניקוד/,/קוד שמירה/,/חוזר לפעולה אחרי 2 גלים/,/שטח ישראל/,/₪500/])assert.match(t,re);
  for(const id of ['btnScores','btnCode','v7','v7Body','v7Close','btnEndless','overScore'])assert.ok(h.includes('id="'+id+'"'),id)});
